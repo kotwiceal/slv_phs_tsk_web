@@ -28,7 +28,9 @@ module.exports = {
         new webpack.HotModuleReplacementPlugin(),
         new webpack.ProvidePlugin(
             {
-                $: 'jquery'
+                $: 'jquery',
+                jQuery: 'jquery',
+                Plotly: 'plotly.js-dist'
             }
         ),
     ],
