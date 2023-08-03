@@ -33,13 +33,12 @@ class Card {
  */
 class Radios {
     /**
-     * @param radio_param object to specify creating radios
-     * @param value initial value for radio group
+     * @param parameters object to specify creating radios
      */
-    constructor(radio_param, value) {
+    constructor(parameters) {
 
-        this.radio_param = radio_param
-        this.value = value
+        // store parameters
+        this.parameters = parameters
 
         // store radios
         this.radios = []
@@ -48,15 +47,15 @@ class Radios {
         this.div_btn_group = $('<div></div>').addClass('btn-group w-100').attr({role: 'group'})
 
         // create radios
-        this.radio_param.forEach(param => {
-            let label = $('<label></label>').addClass('btn btn-primary').attr({'for': `radio-${param.id}`}).append(param.label)
+        this.parameters['radios'].forEach(parameter => {
+            let label = $('<label></label>').addClass('btn btn-primary').attr({'for': `radio-${parameter.id}`}).append(parameter.label)
             let input = $('<input>').addClass('btn-check')
-                .attr({type: 'radio', name: 'btnradio', autocomplete: 'off', id: `radio-${param.id}`})
+                .attr({type: 'radio', name: 'btnradio', autocomplete: 'off', id: `radio-${parameter.id}`})
                 .on('change', () => {
-                    this.value = param.value
-                    this.change(param.value)
+                    this.value = parameter.value
+                    this.change(parameter.value)
                 })
-            this.value === param.value ? input.prop('checked', true) : input.prop('checked', false)
+            this.parameters['value'] === parameter.value ? input.prop('checked', true) : input.prop('checked', false)
             this.radios.push([input, label])
         })
 
@@ -78,7 +77,7 @@ class Radios {
  */
 class Input {
     /**
-     * @param {*} parameter object presenting layout of appearance 
+     * @param parameter object presenting layout of appearance 
      * @example parameter = {label: 'Index', dim: 16, initial: [0, 1, 2, 3], limit: [0, 15]}
      */
     constructor(parameter) {
@@ -124,17 +123,23 @@ class Input {
     event() {}
 
     /**
+     * @brief Opload data to input form
+     * @param data
+     * @example data = [1, 2, 3]
+     */
+    upload(data) {
+        this.input.val(JSON.stringify(data))
+        this.check()
+    }
+
+    /**
      * @brief Get input value.
      * @returns input value
      */
     data() {
-        let result = []
-        try {
-            result = JSON.parse(this.input.val())
-        }
-        catch {
-        }
-        return result
+        let result
+        this.state ? result = JSON.parse(this.input.val()) : result = []
+        return result 
     }
 
     /**
@@ -292,7 +297,9 @@ class CardTab {
  * @brief Container to specify dimension of task.
  */
 class Dimension {
-    constructor() {
+    constructor(parameters) {
+        // store parameters
+        this.parameters = parameters
         // build interface
         this.create_elements()
     }
@@ -305,7 +312,7 @@ class Dimension {
         this.card = new Card('Dimension')
 
         // create radio buttons
-        this.radios = new Radios([{label: '2D', id: '2d', value: 2}, {label: '3D', id: '3d', value: 3}], 3)
+        this.radios = new Radios(this.parameters)
         this.card.append(this.radios.export)
 
         // specify output jQuery object 
@@ -317,14 +324,13 @@ class Dimension {
  * @brief Form to assign initial conditions.
  */
 class InitialCondition {
-    constructor() {
-
-        this.parameters = {inputs: [{id: 'r', label: 'Initial coordinate vecror', dim: 3, limit: [0, 5], initial: [0.1, 0.2, 1]},
-            {id: 'dr', label: 'Initial velocity vecror', dim: 3, limit: [0, 5], initial: [0.1, 0.2, 1]},
-            {id: 'm', label: 'Mass', dim: 1, limit: [0, 5], initial: 1}]}
+    constructor(parameters) {
+        // store parameters
+        this.parameters = parameters
 
         // store created body objects
         this.bodies = {}
+        Body.prototype.bodies = this.bodies
         this.index = 0
 
         // build interface
@@ -362,13 +368,13 @@ class InitialCondition {
      */
     add() {
         // create body object
-        let body = new Body(this.bodies, this.index, this.parameters)
+        let body = new Body(this.index, this.parameters)
         // append body object to list
         this.ul.append(body.export)
         // registrate created body object in dictionary
         this.bodies[this.index] = body
         this.index += 1
-        // perform event
+        // execute event
         this.check()
 
         // if (this.card_preview.card.css('display') == 'none') {
@@ -385,8 +391,8 @@ class InitialCondition {
     data() {
         let data = new Array()
         Object.entries(this.bodies).forEach(
-            ([key, item]) => {
-                data.push(item.data())
+            ([key, body]) => {
+                data.push(body.data())
             }
         )
         return data
@@ -421,10 +427,16 @@ class InitialCondition {
  * @brief Form to assign initial condition given body.
  */
 class Body {
-    constructor(bodies, index, parameter) {
+    /**
+     * @param index identify index
+     * @param parameter object to build inputs form
+     * @example parameter = {inputs: [{id: 'r', label: 'Initial coordinate vecror', dim: 3, limit: [0, 5], initial: [0.1, 0.2, 1]},
+                {id: 'dr', label: 'Initial velocity vecror', dim: 3, limit: [0, 5], initial: [0.1, 0.2, 1]},
+                {id: 'm', label: 'Mass', dim: 1, limit: [0, 5], initial: 1}]},
+     */
+    constructor(index, parameter) {
 
         this.parameter = parameter
-        this.bodies = bodies // object of created body instances
         this.index = index // identifier
 
         // store created inputs objects
@@ -465,6 +477,17 @@ class Body {
 
         // specify output jQuery object 
         this.export = this.li
+    }
+
+    /**
+     * @brief Upload data to inputs form
+     * @param data object
+     * @example data = {r: [0, 0, 0], dr: [1, 1, 1], m: 2}
+     */
+    upload(data) {
+        this.inputs.forEach(input => {
+            input.paste(data[input.id])
+        })
     }
 
     /**
@@ -510,12 +533,9 @@ class Body {
  * @brief Container to specify physics parameters of task.
  */
 class Physics {
-    constructor() {
-
-        this.parameters = {inputs: [
-            {id: 'g', label: 'Gravitational constant', dim: 1, limit: [0, 5], initial: 1},
-            {id: 't', label: 'Mesh', dim: 3, limit: [0, 50], initial: [0, 1, 10]}
-        ]}
+    constructor(parameters) {
+        // store parameters
+        this.parameters = parameters
 
         // store created inputs
         this.inputs = []
@@ -545,6 +565,17 @@ class Physics {
 
         // specify output jQuery object 
         this.export = this.card.export
+    }
+
+    /**
+     * @brief Upload data to inputs form
+     * @param data
+     * @example data = {g: 1, t: [0, 10, 50]}
+     */
+    upload(data) {
+        this.inputs.forEach(input => {
+            input.paste(data[input.id])
+        })
     }
 }
 
@@ -593,9 +624,9 @@ class Figure {
      */
     create_elements() {
         // define layout
-        this.layout = {grid: {rows: 1, columns: 2, pattern: 'independent'}, 
-        plot_bgcolor: $('body').css('background-color'), paper_bgcolor: $('body').css('background-color'), 
-        font: {color: $('body').css('color')}}
+        this.layout = {autosize: true, yaxis: {scaleanchor: 'x', scaleratio: 1},
+            plot_bgcolor: $('body').css('background-color'), paper_bgcolor: $('body').css('background-color'), 
+            font: {color: $('body').css('color')}}
         this.figure = $('<div></div>').addClass('container-fluid').attr('id', this.id)
 
         // difine export jquery object
@@ -630,8 +661,21 @@ class Figure {
      */
     data_transform(data) {
         let traces = []
+        let scale = 5
         try {
-            // TODO
+            for (let i = 0; i < data.length; i++) {
+                let body = data[i]
+                switch (body['r'].length) {
+                    case 2:
+                        traces.push({x: [body['r'][0]], y: [body['r'][1]], mode: 'markers',  type: 'scatter', name: String(i), 
+                            marker: {size: scale*body['m']}})
+                        break
+                    case 3:
+                        traces.push({x: [body['r'][0]], y: [body['r'][1]], z: [body['r'][2]], mode: 'markers',  type: 'scatter3d', name: String(i),
+                            marker: {size: scale*body['m']}})
+                        break
+                }
+            }
         }
         catch {
             console.log('Figure: data are not transformed')
@@ -646,7 +690,7 @@ class Figure {
      */
     plot(data) {
         this.data = this.data_transform(data)
-        Plotly.newPlot(this.id, this.data, this.layout)
+        Plotly.newPlot(this.id, this.data, this.layout, {responsive: true})
     }
 }
 
@@ -655,6 +699,20 @@ class Figure {
  */
 class Problem {
     constructor() {
+        // define parameters of input form
+        this.parameters = {
+            dimension: {radios: [{label: '2D', id: '2d', value: 2}, {label: '3D', id: '3d', value: 3}], value: 2},
+            initial: {inputs: [{id: 'r', label: 'Initial coordinate vecror', dim: 2, limit: [-50, 50], initial: [1, 1]},
+                {id: 'dr', label: 'Initial velocity vecror', dim: 2, limit: [-50, 50], initial: [0.1, 0.2]},
+                {id: 'm', label: 'Mass', dim: 1, limit: [0, 10], initial: 1}]},
+            physics: {inputs: [
+                {id: 'g', label: 'Gravitational constant', dim: 1, limit: [0, 5], initial: 1},
+                {id: 't', label: 'Mesh', dim: 3, limit: [0, 50], initial: [0, 1, 10]}
+            ]}
+        }
+
+        this.set_temporary = new Set(['r', 'dr'])
+
         // build interface
         this.create_elements()
         // create callbacks
@@ -669,9 +727,9 @@ class Problem {
         this.div_container = $('<div></div>').addClass('container')
 
         // create content
-        this.dimension = new Dimension()
-        this.initialCondition = new InitialCondition()
-        this.physics = new Physics()
+        this.dimension = new Dimension(this.parameters['dimension'])
+        this.initialCondition = new InitialCondition(this.parameters['initial'])
+        this.physics = new Physics(this.parameters['physics'])
         this.preview = new Preview()
 
         // create gridlayout and append
@@ -697,6 +755,27 @@ class Problem {
      * @brief Assign event functions created interface objects.
      */
     create_callbacks() {
+
+        // difene event handle at toggle radios
+        Radios.prototype.change = (value) => {
+            // overwrite dimension attribute of input
+            this.parameters['initial']['inputs'].forEach(input => {
+                if (this.set_temporary.has(input['id'])) {
+                    input['dim'] = value
+                }
+            })
+            // update state of all inputs
+            Object.entries(this.initialCondition.bodies).forEach(
+                ([key, item]) => {
+                    item.inputs.forEach(input => {
+                        input.check()
+                    })
+                }
+            )
+        }
+
+        Input.prototype.event = () => {this.check()}
+        Body.prototype.check = () => {this.check()}
         this.initialCondition.check = () => {this.check()}
     }
     
@@ -704,8 +783,25 @@ class Problem {
      * @brief Event function at changing, appending and deleting inputs form.
      */
     check() {
-        console.log('this.initialCondition.status()', this.initialCondition.status())
-        console.log('this.initialCondition.data()', this.initialCondition.data())
+        if (this.initialCondition.status()) {
+            this.preview_update()
+        }
+    }
+
+    preview_update() {
+        this.preview.figure.clear()
+        this.preview.figure.plot(this.initialCondition.data())
+    }
+
+    /**
+     * @brief Upload data to inputs form
+     * @param data
+     * @example data = {'dimension': 2, initial: [{r: [0, 0], r: [1, 1], m: 1}, {r: [2, 2], r: [2, 2], m: 2}], physics: {g: 1, t: [0, 10, 50]}}
+     */
+    upload(data) {
+        this.dimension.upload(data['dimension'])
+        this.initialCondition.upload(data['initial'])
+        this.physics.upload(data['physics'])
     }
 }
 
