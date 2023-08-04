@@ -25,7 +25,7 @@ def worker_watcher(mng_dkt, mng_lock):
             try:
                 # acquire lock
                 mng_lock.acquire()
-                mng_dkt[result['id']] = result
+                mng_dkt[result['sid']] |= {result['id']: result}
             finally:
                 # release lock
                 mng_lock.release()
@@ -34,8 +34,9 @@ def worker_watcher(mng_dkt, mng_lock):
 
 class TaskClassicalGravitation:
     """Numerical solving the cauchy problem of classical gravitation."""
-    def __init__(self, problem: dict, id) -> None:
+    def __init__(self, problem: dict, sid: str, id: str) -> None:
         self.problem = problem
+        self.sid = sid
         self.id = id
         self.layout = {}
         self.status = False
@@ -60,7 +61,7 @@ class TaskClassicalGravitation:
             self.status = False
         finally:
             # assemble results
-            result = dict(task_name = self.__class__.__name__, id = self.id, 
+            result = dict(task_name = self.__class__.__name__, sid = self.sid, id = self.id,
                 solution = dict(r = self.r, dr = self.dr, status = self.status), 
                 problem = self.problem) | plot
         return result
@@ -162,28 +163,37 @@ class TaskManager():
         """Launch pool session."""
         print(f'TaskManager: process({tasks})')
         [self.pool.apply_async(task.solve_w, args = (self.mng_dkt, self.mng_lock,), 
-            callback = lambda result, id = task.id: self.callback(id, result)) for task in tasks]   
+            callback = lambda result, sid = task.sid, id = task.id: self.callback(sid, id, result)) for task in tasks]   
     
-    def callback(self, id, result) -> None:
+    def callback(self, sid, id, result) -> None:
         """Callback function at finishing task."""
         try:
             # acquire lock
             self.mng_lock.acquire()
-            data = self.mng_dkt[id].copy()
+            data = self.mng_dkt[sid][id].copy()
         finally:
             # release lock
             self.mng_lock.release()
-        data
+        
         # emit results to client socket
-        self.socketio.emit('process', data['worker'], to = id, namespace = '/solver')
-        self.get_pool()
+        self.socketio.emit('process', dict(worker = data['worker']), to = sid, namespace = '/solver')
+        
+    def registrate_client(self, sid: str) -> None:
+        """Create client account in dict manager."""
+        try:
+            # acquire lock
+            self.mng_lock.acquire()
+            self.mng_dkt[sid] = {}
+        finally:
+            # release lock
+            self.mng_lock.release()
         
     def close(self) -> None:
         """Finishing pool session."""
         self.pool.close()
         self.pool.join()
 
-def build_problem_2d() -> dict:
+def generate_problem_classical_gravitation_2d() -> dict:
     """Test task initialization in 2D configuration."""
     order = 3
     dimension = 2
@@ -195,5 +205,17 @@ def build_problem_2d() -> dict:
     initial[[0, 2]] = np.array([-1, 1]) + np.random.rand(2)*0.01
     initial[[4, 6]] = np.array([1, 0]) + np.random.rand(2)*0.01
     initial[[8, 10]] = np.array([0, 1]) + np.random.rand(2)*0.01
+    problem = dict(initial = initial, mesh = mesh, dimension = dimension, order = order, m = m, g = g)
+    return problem
+
+def build_problem_classical_gravitation(data: dict) -> dict:
+    """Assemble problem of classical gravitation."""
+    order = len(data['body'])
+    dimension = len(data['body'][0]['r'])
+    mesh = np.linspace(data['param']['t'][0], data['param']['t'][1], num = data['param']['t'][2])
+    m = [value['m'] for value in data['body']]
+    initial = [[body['r'], body['dr']] for body in data['body']]
+    initial = [ii for s in initial for i in s for ii in i]
+    g = data['param']['g']
     problem = dict(initial = initial, mesh = mesh, dimension = dimension, order = order, m = m, g = g)
     return problem

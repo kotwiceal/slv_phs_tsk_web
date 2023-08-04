@@ -9,7 +9,6 @@ $(document).ready(() => {
     // set dark interface mode
     $('html').attr({'data-bs-theme': 'dark'})
 
-    let main = new Main()
-    $('#content').append(main.export)
+    let main = new Main($('#content'))
 
 })

@@ -9,6 +9,13 @@ packages = [{include = "slv_phs_tsk_web"}]
 [tool.poetry.dependencies]
 python = ">=3.11,<3.13"
 flask = "^2.3.2"
+redis = "^4.6.0"
+flask-socketio = "^5.3.5"
+plotly = "^5.15.0"
+scipy = "^1.11.1"
+
+[tool.poetry.group.dev.dependencies]
+ipykernel = "^6.25.0"
 
 [build-system]
 requires = ["poetry-core"]
