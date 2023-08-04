@@ -1,3 +1,6 @@
+import {Socket} from './socket'
+import {sha256} from 'js-sha256'
+
 /**
  * @brief Card container to content other elements.
  */
@@ -19,7 +22,7 @@ class Card {
     }
 
     /**
-     * Append to card body
+     * @brief Append to card body
      * @param body appended object 
      */
     append(body) {
@@ -78,21 +81,21 @@ class Radios {
 class Input {
     /**
      * @param parameter object presenting layout of appearance 
-     * @example parameter = {label: 'Index', dim: 16, initial: [0, 1, 2, 3], limit: [0, 15]}
+     * @example parameter = {id: 'in', label: 'Index', dim: 16, initial: [0, 1, 2, 3], limit: [0, 15]}
      */
-    constructor(parameter) {
-        this.parameter = parameter
+    constructor(parameters) {
+        this.parameters = parameters
         this.state = false
 
         // create elements
         this.input_group = $('<div></div>').addClass('input-group has-validation')        
         this.div_form_float = $('<div></div>').addClass('form-floating is-invalid')       
 
-        this.input = $('<input>').attr({id: `floatingInputGroup-${this.parameter.id}`, type: 'text', 
-            placeholder: this.parameter.label}).prop('required', true)
-            .addClass('form-control is-invalid').val(JSON.stringify(this.parameter.initial))
+        this.input = $('<input>').attr({id: `floatingInputGroup-${this.parameters.id}`, type: 'text', 
+            placeholder: this.parameters.label}).prop('required', true)
+            .addClass('form-control is-invalid').val(JSON.stringify(this.parameters.initial))
             .on('input', () => {this.change()}).on('blur', () => {this.change()})
-        this.label = $('<label></label>').attr({for: `floatingInputGroup-${this.parameter.id}`}).append(this.parameter.label)
+        this.label = $('<label></label>').attr({for: `floatingInputGroup-${this.parameters.id}`}).append(this.parameters.label)
 
         this.div_feedback = $('<div></div>').addClass('invalid-feedback')
 
@@ -123,23 +126,19 @@ class Input {
     event() {}
 
     /**
-     * @brief Opload data to input form
-     * @param data
-     * @example data = [1, 2, 3]
-     */
-    upload(data) {
-        this.input.val(JSON.stringify(data))
-        this.check()
-    }
-
-    /**
-     * @brief Get input value.
+     * @brief Assign/extract input data.
+     * @param data setting value
      * @returns input value
      */
     data() {
-        let result
-        this.state ? result = JSON.parse(this.input.val()) : result = []
-        return result 
+        if (arguments.length == 1) {
+            this.input.val(JSON.stringify(arguments[0]))
+            this.check()
+        } else {
+            let result
+            this.state ? result = JSON.parse(this.input.val()) : result = []
+            return result 
+        }
     }
 
     /**
@@ -149,23 +148,23 @@ class Input {
         let line = this.input.val()
         if (this.isValidJsonString(line)) {
             let object = JSON.parse(line) 
-            if (typeof object == 'number' && this.parameter.dim == 1) {
+            if (typeof object == 'number' && this.parameters.dim == 1) {
                 this.state = true
             }
             else {
                 // check length array
-                if (object.length == this.parameter.dim) {
+                if (object.length == this.parameters.dim) {
                     // check belonging each element to given range
                     for (let index in object) {
                         let value = object[index]
-                        this.state = (!isNaN(value)) ? ((value >= this.parameter.limit[0] && value <= this.parameter.limit[1]) ? true : false) : false
+                        this.state = (!isNaN(value)) ? ((value >= this.parameters.limit[0] && value <= this.parameters.limit[1]) ? true : false) : false
                     }
                     if (!this.state) {
-                        this.cause(`data must be an array with elements in range: ${JSON.stringify(this.parameter.limit)}`)
+                        this.cause(`data must be an array with elements in range: ${JSON.stringify(this.parameters.limit)}`)
                     }
                 } else {
                     this.state = false
-                    this.cause(`data must be an array of given size: ${this.parameter.dim}`)
+                    this.cause(`data must be an array of given size: ${this.parameters.dim}`)
                 }
             }
         } else {
@@ -364,7 +363,7 @@ class InitialCondition {
     }
 
     /**
-     * @brief Callback add button click
+     * @brief Callback add button click.
      */
     add() {
         // create body object
@@ -376,26 +375,35 @@ class InitialCondition {
         this.index += 1
         // execute event
         this.check()
-
-        // if (this.card_preview.card.css('display') == 'none') {
-        //     this.card_preview.card.show()
-        //     this.fiugre_preview.load()
-        // }
     }
 
     /**
-     * @brief Return data of initial conditions.
+     * @brief Assign/extract input from data.
+     * @param data object
      * @returns array of object
      * @example data = [{r: [0, 0, 0], dr: [0, 0, 0], m: 1}, {r: [1, 1, 1], dr: [1, 1, 1], m: 2}]
      */
     data() {
-        let data = new Array()
-        Object.entries(this.bodies).forEach(
-            ([key, body]) => {
-                data.push(body.data())
-            }
-        )
-        return data
+        if (arguments.length == 1) {
+            let data = arguments[0]
+            // clear bodies
+            this.bodies = {}
+            this.ul.empty()
+            // create bodies with specified inputs form data
+            data.forEach(body => {
+                let index = this.index
+                this.add()
+                this.bodies[index].data(body)
+            })
+        } else {
+            let data = new Array()
+            Object.entries(this.bodies).forEach(
+                ([key, body]) => {
+                    data.push(body.data())
+                }
+            )
+            return data
+        }
     }
 
     /**
@@ -480,25 +488,23 @@ class Body {
     }
 
     /**
-     * @brief Upload data to inputs form
+     * @brief Assign/extract input from data.
      * @param data object
-     * @example data = {r: [0, 0, 0], dr: [1, 1, 1], m: 2}
-     */
-    upload(data) {
-        this.inputs.forEach(input => {
-            input.paste(data[input.id])
-        })
-    }
-
-    /**
-     * @brief Return data of given initial condition.
      * @returns object
      * @example data = {r: [0, 0, 0], dr: [0, 0, 0], m: 1}
      */
     data() {
-        let data = {}
-        this.inputs.forEach(input => {data[input.parameter.id] = input.data()})
-        return data
+        if (arguments.length == 1) {
+            let data = arguments[0]
+            // assign value to inputs
+            this.inputs.forEach(input => {
+                input.data(data[input.parameters.id])
+            })
+        } else {
+            let data = {}
+            this.inputs.forEach(input => {data[input.parameters.id] = input.data()})
+            return data
+        }
     }
 
     /**
@@ -568,25 +574,40 @@ class Physics {
     }
 
     /**
-     * @brief Upload data to inputs form
-     * @param data
+     * @brief Return data of given initial condition.
+     * @param data object
+     * @returns object
      * @example data = {g: 1, t: [0, 10, 50]}
      */
-    upload(data) {
-        this.inputs.forEach(input => {
-            input.paste(data[input.id])
-        })
+    data() {
+        if (arguments.length == 1) {
+            let data = arguments[0]
+            this.inputs.forEach(input => {
+                input.data(data[input.parameters.id])
+            })
+        } else {
+            let data = {}
+            this.inputs.forEach(input => {data[input.parameters.id] = input.data()})
+            return data
+        }
     }
+
 }
 
 /**
  * @brief Container to display preview graph.
  */
 class Preview {
-    constructor() {
+    constructor(parameters) {
+
+        this.parameters = parameters
+
         // build interface
         this.create_elements()
         this.figure.load()
+
+        // set callbacks
+        this.create_callbacks()
     }
 
     /**
@@ -595,15 +616,97 @@ class Preview {
     create_elements() {
         // create card contain
         this.card = new Card('Preview')
-        // assign style to carrd container
-        this.card.card.css({'height': '60vh'})
+
         // create figure
         this.figure = new Figure('preview')
         this.card.append(this.figure.export)
 
+        // create sliders
+        this.sliders = []
+        this.parameters.sliders.forEach(slider_param => {
+            let slider = new Slider(slider_param)
+            this.sliders.push(slider)
+            this.card.append(slider.export)
+        })
+
         // specify output jQuery object 
         this.export = this.card.export
     }
+
+    /**
+     * @brief Assign event functions created interface objects.
+     */
+    create_callbacks() {
+        // add event handler to sliders in order to customize plot
+        this.sliders.forEach(slider => {
+            slider.event = () => {
+                this.figure.parameters[slider.parameters.id] = slider.data()
+                this.figure.plot()
+            }
+        })
+    }
+}
+
+/**
+ * @brief Slider primitive with handler function at changing.
+ */
+class Slider {
+    /**
+     * @param parameters object to set appearance
+     * @example parameters = {id: 'slider', label: 'Slider', min: 0, max: 10, step: 0.5, value: 4}
+     */
+    constructor(parameters) {
+
+        this.parameters = parameters
+
+        // build interface
+        this.create_elements()
+    }
+
+    /**
+     * @brief Assemble interface based jQuery objects.
+     */
+    create_elements() {
+        // create label
+        this.label = $('<label></label>').addClass('form-label').attr({for: `range-${this.parameters.id}`}).append(this.parameters.label)
+        // create input range
+        this.input = $('<input>').addClass('form-range').attr({id: `range-${this.parameters.id}`, type: 'range', 
+            min: String(this.parameters.min), max: String(this.parameters.max), step: String(this.parameters.step),
+            value: String(this.parameters.value)})
+            .on('input', () => {this.change()})
+
+        // set label
+        this.change()
+
+        this.export = [this.label, this.input]
+    }
+
+    /**
+     * @brief Assign/extract data slider data.
+     * @param data object
+     * @returns number
+     */
+    data() {
+        if (arguments.length == 1) {
+            this.input.val(arguments[0])
+            this.change()
+        } else {
+            return JSON.parse(this.input.val())
+        }
+    }
+
+    /**
+     * @brief Handler function at slider changing.
+     */
+    change() {
+        this.label.empty()
+        this.label.append(`${this.parameters.label}: ${this.input.val()}`)
+        this.event()
+    }
+    /**
+     * @brief Event function.
+     */
+    event() {}
 }
 
 /**
@@ -613,6 +716,8 @@ class Preview {
 class Figure {
     constructor(id) {
         this.id = id
+        // defalut parameters
+        this.parameters = {scale_m: 5, scale_dr: 5}
         // store data
         this.data = {}
         // build interface
@@ -627,7 +732,7 @@ class Figure {
         this.layout = {autosize: true, yaxis: {scaleanchor: 'x', scaleratio: 1},
             plot_bgcolor: $('body').css('background-color'), paper_bgcolor: $('body').css('background-color'), 
             font: {color: $('body').css('color')}}
-        this.figure = $('<div></div>').addClass('container-fluid').attr('id', this.id)
+        this.figure = $('<div></div>').addClass('container-fluid w-100').attr('id', this.id)
 
         // difine export jquery object
         this.export = this.figure
@@ -655,24 +760,20 @@ class Figure {
     
     /**
      * @brief Map data to plotly.j graph.
-     * @param data JSON data
-     * @example data = [{r: [0, 0, 0], dr: [0, 0, 0], m: 1}, {r: [1, 1, 1], dr: [1, 1, 1], m: 2}]
-     * @returns JSON of plotly.js object
      */
-    data_transform(data) {
+    data_transform() {
         let traces = []
-        let scale = 5
         try {
-            for (let i = 0; i < data.length; i++) {
-                let body = data[i]
+            for (let i = 0; i < this.data_raw.length; i++) {
+                let body = this.data_raw[i]
                 switch (body['r'].length) {
                     case 2:
                         traces.push({x: [body['r'][0]], y: [body['r'][1]], mode: 'markers',  type: 'scatter', name: String(i), 
-                            marker: {size: scale*body['m']}})
+                            marker: {size: this.parameters.scale_m*body['m']}})
                         break
                     case 3:
                         traces.push({x: [body['r'][0]], y: [body['r'][1]], z: [body['r'][2]], mode: 'markers',  type: 'scatter3d', name: String(i),
-                            marker: {size: scale*body['m']}})
+                            marker: {size: this.parameters.scale_m*body['m']}})
                         break
                 }
             }
@@ -680,7 +781,7 @@ class Figure {
         catch {
             console.log('Figure: data are not transformed')
         }
-        return traces
+        this.data_plt = traces
     }
 
     /**
@@ -688,9 +789,41 @@ class Figure {
      * @param data JSON data 
      * @example data = data = [{r: [0, 0, 0], dr: [0, 0, 0], m: 1}, {r: [1, 1, 1], dr: [1, 1, 1], m: 2}]
      */
-    plot(data) {
-        this.data = this.data_transform(data)
-        Plotly.newPlot(this.id, this.data, this.layout, {responsive: true})
+    plot() {
+        if (arguments.length == 1) {
+            this.data_raw = arguments[0]
+        }
+        this.data_transform()
+        Plotly.newPlot(this.id, this.data_plt, this.layout, {responsive: true})
+    }
+}
+
+class Solver {
+    constructor() {
+        // build interface
+        this.create_elements()
+    }
+
+    /**
+     * @brief Assemble interface based jQuery objects.
+     */
+    create_elements() {
+        // create card contain
+        this.card = new Card('Solver')
+        // assign style to carrd container
+        // this.card.card.css({'height': '60vh'})
+        // create button
+        this.button_solve = $('<button></button>').addClass('btn btn-primary w-100').on('click', () => {this.run()})
+            .prop('disabled', true).append('Run')
+
+        this.card.append(this.button_solve)
+
+        // specify output jQuery object 
+        this.export = this.card.export
+    }
+
+    run() {
+
     }
 }
 
@@ -702,12 +835,15 @@ class Problem {
         // define parameters of input form
         this.parameters = {
             dimension: {radios: [{label: '2D', id: '2d', value: 2}, {label: '3D', id: '3d', value: 3}], value: 2},
-            initial: {inputs: [{id: 'r', label: 'Initial coordinate vecror', dim: 2, limit: [-50, 50], initial: [1, 1]},
-                {id: 'dr', label: 'Initial velocity vecror', dim: 2, limit: [-50, 50], initial: [0.1, 0.2]},
+            initial: {inputs: [{id: 'r', label: 'Position', dim: 2, limit: [-50, 50], initial: [1, 1]},
+                {id: 'dr', label: 'Velocity', dim: 2, limit: [-50, 50], initial: [0.1, 0.2]},
                 {id: 'm', label: 'Mass', dim: 1, limit: [0, 10], initial: 1}]},
             physics: {inputs: [
                 {id: 'g', label: 'Gravitational constant', dim: 1, limit: [0, 5], initial: 1},
-                {id: 't', label: 'Mesh', dim: 3, limit: [0, 50], initial: [0, 1, 10]}
+                {id: 't', label: 'Mesh', dim: 3, limit: [0, 1000000], initial: [0, 1, 10]}
+            ]},
+            preview: {sliders: [{id: 'scale_m', label: 'Mass scale', min: 1, max: 25, step: 1, value: 4},
+                {id: 'scale_dr', label: 'Velocity scale', min: 0.1, max: 5, step: 0.5, value: 2}
             ]}
         }
 
@@ -717,6 +853,7 @@ class Problem {
         this.create_elements()
         // create callbacks
         this.create_callbacks()
+    
     }
 
     /**
@@ -730,22 +867,12 @@ class Problem {
         this.dimension = new Dimension(this.parameters['dimension'])
         this.initialCondition = new InitialCondition(this.parameters['initial'])
         this.physics = new Physics(this.parameters['physics'])
-        this.preview = new Preview()
+        this.preview = new Preview(this.parameters['preview'])
+        this.solver = new Solver()
 
-        // create gridlayout and append
-        this.row = $('<div></div>').addClass('row')
-        this.col_set = $('<div></div>').addClass('col')
-        this.col_preview = $('<div></div>').addClass('col')
-        this.row.append([this.col_set, this.col_preview])
-        this.row_dim = $('<div></div>').addClass('row')
-        this.row_init = $('<div></div>').addClass('row')
-        this.row_ph = $('<div></div>').addClass('row')
-        this.col_set.append([this.row_dim, this.row_init, this.row_ph])
-        this.col_preview.append(this.preview.export)
-        this.row_dim.append(this.dimension.export)
-        this.row_init.append(this.initialCondition.export)
-        this.row_ph.append(this.physics.export)
-        this.div_container.append(this.row)
+        // append elements
+        this.div_container.append([this.dimension.export, this.initialCondition.export, this.preview.export, 
+            this.physics.export, this.solver.export])
 
         // specify output jQuery object 
         this.export = this.div_container
@@ -783,7 +910,9 @@ class Problem {
      * @brief Event function at changing, appending and deleting inputs form.
      */
     check() {
-        if (this.initialCondition.status()) {
+        let state = this.initialCondition.status()
+        this.solver.button_solve.prop('disabled', !state)
+        if (state) {
             this.preview_update()
         }
     }
@@ -794,14 +923,24 @@ class Problem {
     }
 
     /**
-     * @brief Upload data to inputs form
-     * @param data
-     * @example data = {'dimension': 2, initial: [{r: [0, 0], r: [1, 1], m: 1}, {r: [2, 2], r: [2, 2], m: 2}], physics: {g: 1, t: [0, 10, 50]}}
+     * @brief Get/set data from all inputs
+     * @param data object
+     * @return object
+     * @example data = {'dimension': 2, initial: [{r: [0, 0], dr: [1, 1], m: 1}, {r: [2, 2], dr: [2, 2], m: 2}], 
+     * physics: {g: 1, t: [0, 10, 50]}}
      */
-    upload(data) {
-        this.dimension.upload(data['dimension'])
-        this.initialCondition.upload(data['initial'])
-        this.physics.upload(data['physics'])
+    data() {
+        if (arguments.length == 1) {
+            let data = arguments[0]
+            // this.dimension.upload(data['dimension'])
+            this.initialCondition.data(data['initial'])
+            this.physics.data(data['physics'])
+        } else {
+            let result = {}
+            result['body'] = this.initialCondition.data()
+            result['param'] = this.physics.data()
+            return result
+        }
     }
 }
 
@@ -809,16 +948,28 @@ class Problem {
  * @brief Assemble interface via primitives.
  */
 class Main {
-    constructor() {
-        // define setting to create a custom cardtab
+    constructor(parent) {
+        this.parent = parent
+
         this.card_tab_param = {
-            style: {container: {'padding-top': '10vh', 'width': '90%', 'height': '50vh'}, 
-                    card: {'height': '80vh'}},
+            style: {container: {'padding-top': '5vh', 'width': '90%'}, 
+                    card: {}},
             tabs: [{label: 'Problem', id: 'problem'}, {label: 'Result', id: 'result'}]
         }
 
+        // create socket
+        this.socket = new Socket('/solver')
+
         // build interface
         this.create_elements()
+        // set callbacks
+        this.create_callbacks()
+
+        // upload data
+        let data_upload = {dimension: 2, initial: [{r: [0, 0], dr: [0, 0], m: 1}, {r: [2, 2], dr: [0, 0], m: 1}, 
+            {r: [1, -2], dr: [0, 0], m: 2}], 
+            physics: {g: 1, t: [0, 50, 1000]}}
+        this.problem.data(data_upload)
     }
 
     /**
@@ -827,11 +978,28 @@ class Main {
     create_elements() {
         // create a custom cardtab
         this.card_tab = new CardTab(this.card_tab_param)
-        this.tab_problem = new Problem()
-        this.card_tab.tabs['problem'].div.append(this.tab_problem.export)
+        this.problem = new Problem()
+        this.card_tab.tabs['problem'].div.append(this.problem.export)
 
         // specify output jQuery object 
         this.export = this.card_tab.export
+        this.parent.append(this.export)
+    }
+
+    create_callbacks() {
+        // define socket handler
+        this.socket.socket.on('process', (data) => {
+            console.log(data)
+        })
+
+        // assign request method
+        this.problem.solver.run = () => {
+            let state = this.problem.initialCondition.status()
+            if (state) {
+                let data = this.problem.data()
+                this.socket.emit('process', [{id: sha256(JSON.stringify(data)).slice(0, 16), data: data}])
+            }
+        }
     }
 }
 
