@@ -335,6 +335,9 @@ class InitialCondition {
         // build interface
         this.create_elements()
 
+        // set callbacks
+        this.create_callbacks()
+
         // difine state
         this.state = this.status()
 
@@ -363,9 +366,30 @@ class InitialCondition {
     }
 
     /**
+     * @brief Assign event functions created interface objects.
+     */
+    create_callbacks() {
+
+        Body.prototype.event_remove = (index) => {
+            delete this.bodies[index]
+            console.log(this.bodies)
+            if (Object.keys(this.bodies).length === 0 && this.bodies.constructor === Object) {
+                console.log('paassss')
+                this.event_empty()
+            }
+        }
+
+    }
+
+    /**
      * @brief Callback add button click.
      */
     add() {
+
+        if (Object.keys(this.bodies).length === 0 && this.bodies.constructor === Object) {
+            this.event_anew()
+        }
+
         // create body object
         let body = new Body(this.index, this.parameters)
         // append body object to list
@@ -429,6 +453,16 @@ class InitialCondition {
      * @brief Support callback function.
      */
     check() {}
+
+    /**
+     * @brief Event handler at removing all bodies.
+     */
+    event_empty() {}
+
+    /**
+     * @brief Event handler at anew creation bodies list.
+     */
+    event_anew() {}
 }
 
 /**
@@ -525,10 +559,18 @@ class Body {
      */
     clear() {
         this.li.remove()
-        delete this.bodies[this.index]
+        // delete this.bodies[this.index]
         this.check()
+        // remove item of bodies
+        this.event_remove(this.index)
     }
     
+    /**
+     * @brief Event handler at removing all body.
+     * @param index 
+     */
+    event_remove(index) {}
+
     /**
      * @brief Support callback function.
      */
@@ -768,11 +810,15 @@ class Figure {
                 let body = this.data_raw[i]
                 switch (body['r'].length) {
                     case 2:
-                        traces.push({x: [body['r'][0]], y: [body['r'][1]], mode: 'markers',  type: 'scatter', name: String(i), 
+                        traces.push({x: [body['r'][0]], y: [body['r'][1]], mode: 'markers',  type: 'scatter', name: String(i + 1), 
                             marker: {size: this.parameters.scale_m*body['m']}})
+                        traces.push({x: [body['r'][0], body['r'][0] + body['dr'][0] * this.parameters.scale_dr], 
+                            y: [body['r'][1], body['r'][1] + body['dr'][1] * this.parameters.scale_dr], 
+                            type: 'scatter', name: String(i + 1), 
+                            marker: {size: this.parameters.scale_m*body['m']}, symbol: 'arrow-bar-up', angleref: 'previous'})
                         break
                     case 3:
-                        traces.push({x: [body['r'][0]], y: [body['r'][1]], z: [body['r'][2]], mode: 'markers',  type: 'scatter3d', name: String(i),
+                        traces.push({x: [body['r'][0]], y: [body['r'][1]], z: [body['r'][2]], mode: 'markers',  type: 'scatter3d', name: String(i + 1),
                             marker: {size: this.parameters.scale_m*body['m']}})
                         break
                 }
@@ -792,6 +838,7 @@ class Figure {
     plot() {
         if (arguments.length == 1) {
             this.data_raw = arguments[0]
+            this.clear()
         }
         this.data_transform()
         Plotly.newPlot(this.id, this.data_plt, this.layout, {responsive: true})
@@ -904,6 +951,22 @@ class Problem {
         Input.prototype.event = () => {this.check()}
         Body.prototype.check = () => {this.check()}
         this.initialCondition.check = () => {this.check()}
+
+        // set event handler
+        InitialCondition.prototype.event_empty = () => {
+            this.preview.figure.load()
+            this.preview.figure.data_raw = []
+            this.preview.figure.data_plt = []
+            this.preview.sliders.forEach(slider => {
+                slider.input.prop('disabled', true)
+            })
+        }
+
+        InitialCondition.prototype.event_anew = () => {
+            this.preview.sliders.forEach(slider => {
+                slider.input.prop('disabled', false)
+            })
+        }
     }
     
     /**
@@ -986,6 +1049,9 @@ class Main {
         this.parent.append(this.export)
     }
 
+    /**
+     * @brief Assign event functions created interface objects.
+     */
     create_callbacks() {
         // define socket handler
         this.socket.socket.on('process', (data) => {
