@@ -1,5 +1,3 @@
-import * as bootstrap from 'bootstrap'
-
 /**
  * @brief Texarea pattern.
  */
@@ -21,15 +19,13 @@ class Textarea {
      * @brief Assemble interface based jQuery objects.
      */
     create_elements() { 
-        this.div = $('<div></div>').addClass('form-floating mt-2 mb-2')
         this.textarea = $('<textarea></textarea>').addClass('form-control').attr({id: this.parameters.id})
             .on('blur', () => {this.check()}).on('input', () => {this.check()})
         this.label = $('<label></label>').attr({for: this.parameters.id}).append(this.parameters.label)
         this.feedback = $('<div></div>').addClass('isvalid-feedback')
-        this.div.append([this.textarea, this.label, this.feedback])
 
         // specify output jQuery object 
-        this.export = this.div
+        this.export = $('<div></div>').addClass('form-floating mt-2 mb-2').append([this.textarea, this.label, this.feedback])
     }
 
     /**
@@ -141,7 +137,6 @@ class Select {
         // create options
         this.options = {}
         this.parameters.options.forEach(option => {
-            console.log(option)
             let option_obj = $('<option></option>').append(option.label).attr({value: option.value}).prop('selected', option.selected)
             this.options[option.id] = option_obj
             this.select.append(option_obj)
@@ -153,14 +148,16 @@ class Select {
     /**
      * @brief Assign/extract input data.
      * @param value string
-     * @returns string
+     * @returns object
+     * @example {id: 'tsk-type', label: 'Task of Type'}
      */
     data() {
         if (arguments.length == 1) {
             this.select.val(arguments[0])
         } 
         else {
-            return this.select.val()
+            let id = this.select.val()
+            return {id: id, label: this.options[id].text()}
         }
     }
 }
@@ -183,8 +180,6 @@ class Modal {
         // create modal
         this.modal = $('<div></div>').addClass('modal fade').attr({id: this.parameters.id, tabindex: '-1', 'aria-hidden': 'true',
             'aria-labelledby': `label-${this.parameters.id}`})
-        // create modal object
-        // this.modal_obj = new bootstrap.Modal(this.modal)
         // create dialog
         this.modal_dialog = $('<div></div>').addClass('modal-dialog modal-dialog-centered')
         // create content
@@ -194,7 +189,8 @@ class Modal {
         // create label
         this.modal_label = $('<h5></h5>').addClass('modal-title').append(this.parameters.label).attr({id: `label-${this.parameters.id}`})
         // create close button
-        this.button_close = $('<button></button>').addClass('btn-close').attr({type: 'button', 'data-bs-dismiss': 'modal', 'aria-label': 'Close'})
+        this.button_close = $('<button></button>').addClass('btn-close').on('click', () => {this.hide()})
+            .attr({type: 'button', 'aria-label': 'Close'})
         // create body
         this.modal_body = $('<div></div>').addClass('modal-body')
         // create footer
@@ -206,16 +202,25 @@ class Modal {
         this.modal_dialog.append(this.modal_content)
         this.modal.append(this.modal_dialog)
 
+        // create modal object
+        this.modal_obj = new bootstrap.Modal(this.modal)
+
         // specify output jQuery object 
         this.export = this.modal
     }
 
     /**
-     * @brief Show/hide modal.
-     * @param value bool
+     * @brief Hide modal.
+     */
+    hide() {
+        this.modal_obj.hide()
+    }
+
+    /**
+     * @brief Show modal.
      */
     show() {
-        // TODO
+        this.modal_obj.show()
     }
 
     /**
@@ -249,4 +254,47 @@ class Modal {
     }    
 }
 
-export {Textarea, Select, Modal}
+/**
+ * @brief List patters.
+ */
+class List {
+    constructor() {
+        this.items = {}
+        // build interface
+        this.create_elements()
+    }
+
+    /**
+     * @brief Assemble interface based jQuery objects.
+     */
+    create_elements() {
+        this.div = $('<div></div>').addClass('list-group')
+        this.export = this.div
+    }
+
+    /**
+     * @brief Append item in list.
+     * @param parameters object
+     */
+    append(item, id) {
+        this.items[id] = item
+        this.div.append(item)
+    }
+
+    /**
+     * Erase list.
+     */
+    empty() {
+        this.div.empty()
+    }
+
+    /**
+     * Remove item by keys.
+     */
+    remove(key) {
+        delete this.items[key]
+        this.div.find(`#${key}`).remove()
+    }
+}
+
+export {Textarea, Select, Modal, List}

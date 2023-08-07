@@ -1,4 +1,5 @@
-import {Textarea, Select, Modal} from './toolkit'
+import {Textarea, Select, Modal, List} from './toolkit'
+import {Main, Problem} from './task_panel'
 
 /**
  * @brief Card container to content other elements.
@@ -114,7 +115,6 @@ class NavTab {
      */
     append(tabs) {
         if (Array.isArray(tabs)) {
-            console.log(tabs)
             tabs.forEach(tab => {
                 let tab_obj = new Tab(tab)
                 this.tabs[tab['id']] = tab_obj
@@ -156,79 +156,10 @@ class NavTab {
     }
 }
 
-class List {
-    constructor() {
-        this.items = {}
-        // build interface
-        this.create_elements()
-    }
-
-    /**
-     * @brief Assemble interface based jQuery objects.
-     */
-    create_elements() {
-        this.div = $('<div></div >').addClass('list-group')
-        this.export = this.div
-    }
-
-    /**
-     * @brief Append item in list.
-     * @param parameters object
-     */
-    append(parameters) {
-        if (Array.isArray(parameters)) {
-            parameters.forEach(parameter => {
-                let item = $('<button></button>').addClass('list-group-item list-group-item-action')
-                    .attr({type: 'button', id: `list-group-item-${parameter.id}`})
-                    .append(parameter.label).on('click', () => {this.event(parameter.value)})
-                this.items[parameter.id] = item
-                this.div.append(item)
-            })
-        } 
-        else {
-            let item = $('<button></button>').addClass('list-group-item list-group-item-action')
-                .attr({type: 'button', id: `list-group-item-${parameters.id}`})
-                .append(parameters.label).on('click', () => {this.event(parameters.value)})
-            this.items[parameters.id] = item
-            this.div.append(item)
-        }
-    }
-
-    /**
-     * Erase list.
-     */
-    empty() {
-        this.div.empty()
-    }
-
-    /**
-     * Remove item by keys.
-     */
-    remove(keys) {
-        if (Array.isArray(keys)) {
-            keys.forEach(key => {
-                delete this.item[key]
-                this.div.find(`button[id="list-group-item-${key}"]`).remove()
-            })
-        } else {
-            delete this.tabs[keys]
-            this.div.find(`button[id="list-group-item-${keys}"]`).remove()
-        }
-    }
-
-    /**
-     * @brief Event handler at push item of list.
-     * @param value objet
-     */
-    event(value) {
-        console.log(value)
-    }
-}
-
 /**
  * @brief Dialog to create task
  * @param parameters object
- * @example parameters = {id: 'id-select', label: 'label-select', option: [{label: 'label-option', id: 'id-option', value: 'value-option', selected: 'true/false'}]}
+ * @example parameters = {select: {}, name: {}, comment: {}}
  */
 class Dialog {
     constructor(parameters) {
@@ -256,7 +187,7 @@ class Dialog {
 
         // create confirm button
         this.button = $('<button></button>').addClass('btn btn-primary').attr({type: 'button'})
-            .prop('disabled', true).append('Confirm').on('click', () => {this.proceed()})
+            .prop('disabled', true).append('Confirm').on('click', () => {this.confirm()})
 
         // appent to container
         this.container.append([this.select.export, this.name.export, this.comment.export])
@@ -265,7 +196,11 @@ class Dialog {
         this.export = this.container
     }
 
+    /**
+     * @brief Assign event functions created interface objects.
+     */
     create_callbacks() {
+        // check input name data is correct
         this.name.event = (state) => {
             this.button.prop('disabled', !state)
         }
@@ -274,41 +209,64 @@ class Dialog {
     /**
      * @brief Confirm input data.
      */
-    proceed () {
-        let data = {type: this.select.data(), name: this.name.data(), comment: this.comment.data()}
-        console.log(data)
-        this.proceed_event(data)
+    confirm () {
+        let data = {type: this.select.data(), name: this.name.data(), comment: this.comment.data(), date: new Date().toLocaleString()}
+        data['id'] = sha256(JSON.stringify(data))
+        this.proceed(data)
     }
 
     /**
      * @brief External event.
      */
-    proceed_event(data) {}
+    proceed(data) {}
 }
 
+
 /**
- * @brief Workspace tab interface
+ * @brief Menu tool.
  */
-class Workspace {
+class WorkspaceOptions {
     constructor() {
-        this.index = 0
-        // build interface
-        this.create_elements()
+        this.export = $('<div></div>').addClass('card mb-4').append(
+            $('<div></div>').addClass('card-body').append(
+                $('<div></div>').addClass('btn-group w-100').attr({role: 'group'}).append(
+                    $('<input></input>').addClass('btn-check')
+                        .attr({type: 'checkbox', id: 'btncheck', autocomplete: 'off'}).on('input', () => {this.check()}),
+                    $('<label></label>').addClass('btn btn-outline-primary').append(
+                        $('<i></i>').addClass('bi-ui-checks').css({'font-size': '30px'})).attr({for: 'btncheck'}),
+                    $('<button></button>').addClass('btn btn-primary').append($('<i></i>').addClass('bi-plus-lg').css({'font-size': '30px'}))                  
+                        .attr({type: 'button'}).on('click', () => {this.add()}),
+                    $('<button></button>').addClass('btn btn-primary').append($('<i></i>').addClass('bi-cpu').css({'font-size': '30px'}))
+                        .attr({type: 'button'}).on('click', () => {this.manager()})
+                )
+            )
+        )
     }
 
     /**
-     * @brief Assemble interface based jQuery objects.
+     * @brief External event function.
      */
-    create_elements() {
-        // create coontainer
-        this.div_container = $('<div></div>').addClass('container')
+    check() {}
 
-        // create modal creation dialog
-        let modal_parameters = {label: 'Create task', id: 'modal-create-task'}
-        this.modal_create = new Modal(modal_parameters)
+    /**
+     * @brief External event function.
+     */
+    add() {}
 
-        // create dialog form
-        let dialog_parameters = {
+    /**
+     * @brief External event function.
+     */
+    manager() {}
+} 
+
+/**
+ * @brief Task create dialog based modal.
+ */
+class ModalCreate {
+    constructor() {
+        this.modal_parameters = {label: 'Create task', id: 'modal-create-task'}
+
+        this.dialog_parameters = {
             select: {id: 'dialog-create', label: 'Type', options: [
                     {label: 'Classical gravitation', id: 'tsk_cgrv', value: 'tsk_cgrv', selected: false},
                     {label: 'Linear oscillation', id: 'tsk_losc', value: 'tsk_losc', selected: false}
@@ -317,27 +275,318 @@ class Workspace {
             name: {label: 'Name', id: 'label-name', validation: true},  
             comment: {label: 'Comment', id: 'label-comment', validation: false},
         }
-        console.log(dialog_parameters)
-        this.dialog = new Dialog(dialog_parameters)
-        // appent dialog form to modal
-        this.modal_create.append_body(this.dialog.container)
-        this.modal_create.append_footer(this.dialog.button)
-        // assign callback
-        this.dialog.proceed_event = (data) => {
-            this.list.append({label: `task: ${data.name}`, id: `task-${this.index}`, value: this.index})
-            this.index += 1
+
+        // build interface
+        this.create_elements()
+        // assign callback functions
+        this.create_callbacks()
+    }
+
+    /**
+     * @brief Assemble interface based jQuery objects.
+     */
+    create_elements() {
+        // create modal
+        this.modal = new Modal(this.modal_parameters)
+        // create dialog
+        this.dialog = new Dialog(this.dialog_parameters)
+        // append content
+        this.modal.append_body(this.dialog.container)
+        this.modal.append_footer(this.dialog.button)
+
+    }
+
+    /**
+     * @brief Assign event functions created interface objects.
+     */
+    create_callbacks() {
+        this.dialog.proceed = () => {this.proceed()}
+    }
+
+    /**
+     * @brief External event handler.
+     */
+    proceed() {}
+}
+
+/**
+ * @brief Task delete dialog based modal.
+ */
+class ModalDelete {
+    constructor() {
+        this.modal_parameters = {label: 'Delete task', id: 'modal-delete-task'}
+        // build interface
+        this.create_elements()
+    }
+
+    /**
+     * @brief Assemble interface based jQuery objects.
+     */
+    create_elements() {
+        // create modal
+        this.modal = new Modal(this.modal_parameters)
+        // append content
+        this.modal.append_body('Are you sure?')
+        this.modal.append_footer([
+            $('<button></button>').addClass('btn btn-secondary').append('Cancel').on('click', () => {this.cancel()}),
+            $('<button></button>').addClass('btn btn-primary').append('Confirm').on('click', () => {this.confirm()})
+        ])
+
+    }
+
+    /**
+     * @brief External event handler.
+     */
+    cancel() {}
+
+    /**
+     * @brief External event handler.
+     */
+    confirm() {}
+}
+
+/**
+ * @brief Task edit dialog based modal.
+ */
+class ModalEdit {
+    constructor() {
+        this.modal_parameters = {label: 'Configure task', id: 'modal-edit-task'}
+        // build interface
+        this.create_elements()
+    }
+
+    /**
+     * @brief Assemble interface based jQuery objects.
+     */
+    create_elements() {
+        // create modal
+        this.modal = new Modal(this.modal_parameters)
+        // aooly style of large container
+        this.modal.modal_dialog.addClass('modal-xl')
+        // append content
+        this.modal.append_footer([
+            $('<button></button>').addClass('btn btn-secondary').append('Cancel').on('click', () => {this.cancel()}),
+            $('<button></button>').addClass('btn btn-primary').append('Apply').on('click', () => {this.apply()})
+        ])
+
+    }
+
+    /**
+     * @brief External event handler.
+     */
+    cancel() {}
+
+    /**
+     * @brief External event handler.
+     */
+    apply() {}
+}
+
+/**
+ * @brief Item task pattern.
+ */
+class Item {
+    constructor(parameters) {
+        this.parameters = parameters
+        // build interface
+        this.create_elements()
+    }
+
+    /**
+     * @brief Assemble interface based jQuery objects.
+     */
+    create_elements() {
+        this.export = $('<a></a>').addClass('list-group-item').attr({'aria-current': 'true', 
+            id: this.parameters.id}).append(
+            $('<div></div>').addClass('container').append(
+                $('<div></div>').addClass('row d-flex align-items-center').append(
+                    $('<div></div>').addClass('col').append(
+                        $('<input></input>').addClass('form-check-input is-valid me-1')
+                            .attr({type: 'checkbox', value: '', id: 'firstCheckbox'})
+                            .css({'width': '35px', 'height': '35px'}),
+                        $('<div></div>').addClass('invalid-feedback').append('Incorrect initialization')
+                    ),
+                    $('<div></div>').addClass('col').append(
+                        $('<div></div>').addClass('d-flex justify-content-between').append(
+                            $('<h5></h5>').addClass('mb-1').append(this.parameters.name),
+                            $('<small></small>').append(this.parameters.date),                                        
+                        ),
+                        $('<p></p>').addClass('mb-1').append(`${this.parameters.type.label}`),
+                        $('<small></small>').append(`Comment: ${this.parameters.comment}`),
+                        $('<br></br>'),
+                        $('<small></small>').append(`ID: ${this.parameters.id}`)
+                    ),
+                    $('<div></div>').addClass('col').append(
+                        $('<div></div>').addClass('btn-group-vertical').attr({role: 'group'}).append(
+                            $('<button></button>').addClass('btn btn-primary ').append($('<i></i>')
+                                .addClass('bi-gear').css({'font-size': '30px'})).on('click', () => {this.edit(this.parameters.id)}),
+                            $('<button></button>').addClass('btn btn-primary').append($('<i></i>')
+                                .addClass('bi-trash').css({'font-size': '30px'})).on('click', () => {this.delete(this.parameters.id)})
+                        )
+                    )
+                ),
+            )
+        )
+    }
+
+    /**
+     * @brief External event handler.
+     * @param id
+     */
+    edit(id) {}
+
+    /**
+     * @brief External event handler.
+     * @param id
+     */
+    delete(id) {}
+}
+
+/**
+ * @brief Workspace tab interface
+ */
+class Workspace {
+    constructor() {
+        // store task
+        this.tasks = {}
+        // build interface
+        this.create_elements()
+       // assign callback functions
+        this.create_callbacks()
+    }
+
+    /**
+     * @brief Assemble interface based jQuery objects.
+     */
+    create_elements() {
+
+        // create modal creating/editing/deleteing dialogs
+        this.modal_create_task = new ModalCreate()
+        this.modal_edit_task = new ModalEdit()
+        this.modal_delete_task = new ModalDelete()
+
+        // create option button group
+        this.option = new WorkspaceOptions()
+        
+        // create task list
+        this.list = new List()
+
+        // specify output jQuery object 
+        this.export = $('<div></div>').addClass('container-fluid').append([this.option.export, this.list.export])
+    }
+
+    /**
+     * @brief Assign event functions created interface objects.
+     */
+    create_callbacks() {
+
+        this.modal_edit_task.cancel = () => {this.modal_edit_task.modal.hide()}
+        this.modal_edit_task.apply = () => {this.modal_edit_task.modal.hide()}
+        
+        this.modal_delete_task.cancel = () => {this.modal_delete_task.modal.hide()}
+        this.modal_delete_task.confirm = () => {
+            console.log(this.modal_delete_task.target)
+            this.modal_delete_task.modal.hide()
+            this.list.remove(this.modal_delete_task.target)
+            delete this.tasks[this.modal_delete_task.target]
         }
 
-        // create add button
-        this.button_create = $('<button></button>').addClass('btn btn-primary w-100')
-            .append($('<i></i>').addClass('bi-plus-lg'))
-            .attr({type: 'button', 'data-bs-toggle': 'modal', 'data-bs-target': `#${modal_parameters.id}`})
-        // create list
-        this.list = new List()
-        // appent to container
-        this.div_container.append([this.modal_create.export, this.button_create, this.list.export])
-        // specify output jQuery object 
-        this.export = this.div_container
+        this.modal_create_task.dialog.proceed = (data) => {
+            // TODO separation task types
+            this.modal_edit_task.modal.empty_body()
+            this.tasks[data.id] = new Problem()
+            this.modal_edit_task.modal.append_body(this.tasks[data.id].export)
+            let item = new Item(data)
+            this.list.append(item.export, data.id)
+            this.modal_create_task.modal.hide()
+        }
+
+        // to open task creation dialog
+        this.option.add = () => {this.modal_create_task.modal.show()}
+
+        // this.list.item_pattern = (parameters) => {return this.create_item(parameters)}
+
+        Item.prototype.edit = (id) => {
+            this.modal_edit_task.modal.empty_body()
+            this.tasks[id] = new Problem
+            this.modal_edit_task.modal.append_body(this.tasks[id].export)
+            this.modal_edit_task.modal.show()
+        }
+
+        Item.prototype.delete = (id) => {
+            this.modal_delete_task.modal.show()
+            this.modal_delete_task.target = id
+        }
+    }
+
+    /**
+     * @brief Open task creation dialog.
+     */
+    item_create() {
+        this.modal_create_task.modal.show()
+    }
+
+    /**
+     * @brief Create task item in list.
+     */
+    proceed(data) {
+        console.log(data)
+        this.list.append(data)
+        this.modal_create_task.modal.hide()
+    }
+
+    /**
+     * @brief Edit item event.
+     * @param id
+     */
+    item_edit(id) {
+        this.modal_edit_task.modal.empty_body()
+        this.tasks[id] = new Problem
+        this.modal_edit_task.modal.append_body(this.tasks[id].export)
+        this.modal_edit_task.modal.show()
+    }
+
+    /**
+     * @brief Edit item event.
+     * @param id
+     */
+    item_delete(id) {
+        this.modal_delete_task.modal.show()
+        this.modal_delete_task.target = id
+    }
+
+    create_item(parameters) {
+        return $('<a></a>').addClass('list-group-item').attr({'aria-current': 'true', 
+            id: parameters.id}).append(
+            $('<div></div>').addClass('container').append(
+                $('<div></div>').addClass('row d-flex align-items-center').append(
+                    $('<div></div>').addClass('col').append(
+                        $('<input></input>').addClass('form-check-input is-valid me-1')
+                            .attr({type: 'checkbox', value: '', id: 'firstCheckbox'})
+                            .css({'width': '35px', 'height': '35px'}),
+                        // $('<div></div>').addClass('invalid-feedback').append('Incorrect initialization')
+                    ),
+                    $('<div></div>').addClass('col').append(
+                        $('<div></div>').addClass('d-flex justify-content-between').append(
+                            $('<h5></h5>').addClass('mb-1').append(parameters.name),
+                            $('<small></small>').append(parameters.date),                                        
+                        ),
+                        $('<p></p>').addClass('mb-1').append(`${parameters.type.label}`),
+                        $('<small></small>').append(`Comment: ${parameters.comment}`),
+                        $('<br></br>'),
+                        $('<small></small>').append(`ID: ${parameters.id}`)
+                    ),
+                    $('<div></div>').addClass('col').append(
+                        $('<div></div>').addClass('btn-group-vertical').attr({role: 'group'}).append(
+                            $('<button></button>').addClass('btn btn-primary ').append($('<i></i>')
+                                .addClass('bi-gear').css({'font-size': '30px'})).on('click', () => {this.item_edit(parameters.id)}),
+                            $('<button></button>').addClass('btn btn-primary').append($('<i></i>')
+                                .addClass('bi-trash').css({'font-size': '30px'})).on('click', () => {this.item_delete(parameters.id)})
+                        )
+                    )
+                ),
+            )
+        )
     }
 
 }
@@ -347,7 +596,8 @@ class Menu {
         this.parent = parent
 
         // build interface
-        this.create_elements()
+        // this.create_elements()
+        this.bypass_interface()
     }
 
     /**
@@ -356,7 +606,8 @@ class Menu {
     create_elements() {
 
         // create container
-        this.div_container = $('<div></div>').addClass('container').css({'padding-top': '5vh', 'width': '70%'})
+        this.div_container = $('<div></div>').addClass('container')
+            .css({'padding-top': '5vh', 'width': '50%'})
 
         // create card
         this.card = new Card()
@@ -375,6 +626,17 @@ class Menu {
         this.workspace = new Workspace()
         this.navtab.tabs['workspace'].append(this.workspace.export)
 
+    }
+
+    bypass_interface() {
+        // create container
+        this.div_container = $('<div></div>').addClass('container')
+            .css({'padding-top': '5vh', 'width': '50%'})
+        this.workspace = new Workspace()
+
+        this.div_container.append(this.workspace.export)
+
+        this.parent.append(this.div_container)
     }
 }
 
