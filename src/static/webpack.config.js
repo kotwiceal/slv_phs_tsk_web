@@ -30,7 +30,9 @@ module.exports = {
             {
                 $: 'jquery',
                 jQuery: 'jquery',
-                Plotly: 'plotly.js-dist'
+                Plotly: 'plotly.js-dist',
+                bootstrap: 'bootstrap',
+                sha256: 'js-sha256'
             }
         ),
     ],

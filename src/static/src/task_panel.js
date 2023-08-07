@@ -1,5 +1,4 @@
 import {Socket} from './socket'
-import {sha256} from 'js-sha256'
 
 /**
  * @brief Card container to content other elements.
@@ -841,7 +840,9 @@ class Figure {
             this.clear()
         }
         this.data_transform()
-        Plotly.newPlot(this.id, this.data_plt, this.layout, {responsive: true})
+        if ($(`#${this.id}`).length > 0) {
+            Plotly.newPlot(this.id, this.data_plt, this.layout, {responsive: true})
+        }
     }
 }
 
@@ -1011,7 +1012,7 @@ class Problem {
  * @brief Assemble interface via primitives.
  */
 class Main {
-    constructor(parent) {
+    constructor() {
         this.parent = parent
 
         this.card_tab_param = {
@@ -1069,4 +1070,4 @@ class Main {
     }
 }
 
-export {Main}
+export {Main, Problem}
