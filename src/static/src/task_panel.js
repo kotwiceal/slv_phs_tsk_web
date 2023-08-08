@@ -587,6 +587,9 @@ class Physics {
         // store created inputs
         this.inputs = []
 
+        // define initial state
+        this.state = false
+
         // build interface
         this.create_elements()
     }
@@ -631,6 +634,19 @@ class Physics {
             this.inputs.forEach(input => {data[input.parameters.id] = input.data()})
             return data
         }
+    }
+
+    /**
+     * @brief Check correctness of inputs form data.
+     * @returns bool correctness of inputs form data
+     */
+    status() {
+        // accumulate bool array
+        let state_inputs = []
+        this.inputs.forEach(input => {state_inputs.push(input.state)})
+        // logical AND to bool array
+        this.state = state_inputs.reduce((accumulation, element) => accumulation * element, true)
+        return this.state
     }
 
 }
@@ -897,6 +913,9 @@ class Problem {
 
         this.set_temporary = new Set(['r', 'dr'])
 
+        // define initial state
+        this.state = false
+
         // build interface
         this.create_elements()
         // create callbacks
@@ -916,11 +935,13 @@ class Problem {
         this.initialCondition = new InitialCondition(this.parameters['initial'])
         this.physics = new Physics(this.parameters['physics'])
         this.preview = new Preview(this.parameters['preview'])
-        this.solver = new Solver()
+        // this.solver = new Solver()
 
         // append elements
+        // this.div_container.append([this.dimension.export, this.initialCondition.export, this.preview.export, 
+        //     this.physics.export, this.solver.export])
         this.div_container.append([this.dimension.export, this.initialCondition.export, this.preview.export, 
-            this.physics.export, this.solver.export])
+            this.physics.export])
 
         // specify output jQuery object 
         this.export = this.div_container
@@ -975,7 +996,7 @@ class Problem {
      */
     check() {
         let state = this.initialCondition.status()
-        this.solver.button_solve.prop('disabled', !state)
+        // this.solver.button_solve.prop('disabled', !state)
         if (state) {
             this.preview_update()
         }
@@ -996,15 +1017,29 @@ class Problem {
     data() {
         if (arguments.length == 1) {
             let data = arguments[0]
-            // this.dimension.upload(data['dimension'])
-            this.initialCondition.data(data['initial'])
-            this.physics.data(data['physics'])
+            if (!(Object.keys(data).length === 0 && data.constructor === Object)) {
+                // this.dimension.upload(data['dimension'])
+                this.initialCondition.data(data['initial'])
+                this.physics.data(data['physics'])
+            }
         } else {
             let result = {}
-            result['body'] = this.initialCondition.data()
-            result['param'] = this.physics.data()
+            result['initial'] = this.initialCondition.data()
+            result['physics'] = this.physics.data()
             return result
         }
+    }
+
+    /**
+     * @brief Check correctness of inputs form data.
+     * @returns bool correctness of inputs form data
+     */
+    status() {
+        let state_array = []
+        state_array.push(this.initialCondition.status())
+        state_array.push(this.physics.status())
+        this.state = state_array.reduce((accumulation, element) => accumulation * element, true)
+        return this.state
     }
 }
 
