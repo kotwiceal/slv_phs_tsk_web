@@ -1,6 +1,8 @@
 import {Textarea, Select, Modal, List} from './toolkit'
 import {Main, Problem} from './task_panel'
 
+import {Socket} from './socket'
+
 /**
  * @brief Card container to content other elements.
  */
@@ -227,17 +229,19 @@ class Dialog {
  */
 class WorkspaceOptions {
     constructor() {
+        this.checkbox = $('<input></input>').addClass('btn-check').prop('disabled', true)
+            .attr({type: 'checkbox', id: 'btncheck', autocomplete: 'off'}).on('input', () => {this.check()}),
+        this.button_process = $('<button></button>').addClass('btn btn-primary').append($('<i></i>').addClass('bi-cpu').css({'font-size': '30px'}))
+            .attr({type: 'button'}).prop('disabled', true).on('click', () => {this.process()})
         this.export = $('<div></div>').addClass('card mb-4').append(
             $('<div></div>').addClass('card-body').append(
                 $('<div></div>').addClass('btn-group w-100').attr({role: 'group'}).append(
-                    $('<input></input>').addClass('btn-check')
-                        .attr({type: 'checkbox', id: 'btncheck', autocomplete: 'off'}).on('input', () => {this.check()}),
+                    this.checkbox,
                     $('<label></label>').addClass('btn btn-outline-primary').append(
                         $('<i></i>').addClass('bi-ui-checks').css({'font-size': '30px'})).attr({for: 'btncheck'}),
                     $('<button></button>').addClass('btn btn-primary').append($('<i></i>').addClass('bi-plus-lg').css({'font-size': '30px'}))                  
                         .attr({type: 'button'}).on('click', () => {this.add()}),
-                    $('<button></button>').addClass('btn btn-primary').append($('<i></i>').addClass('bi-cpu').css({'font-size': '30px'}))
-                        .attr({type: 'button'}).on('click', () => {this.manager()})
+                    this.button_process
                 )
             )
         )
@@ -256,7 +260,7 @@ class WorkspaceOptions {
     /**
      * @brief External event function.
      */
-    manager() {}
+    process() {}
 } 
 
 /**
@@ -396,15 +400,16 @@ class Item {
      * @brief Assemble interface based jQuery objects.
      */
     create_elements() {
+        this.checkbox = $('<input></input>').addClass('form-check-input is-valid me-1')
+            .attr({type: 'checkbox', checked: this.parameters.checked}).css({'width': '35px', 'height': '35px'})
+            .on('input', () => {this.check()})
         this.export = $('<a></a>').addClass('list-group-item').attr({'aria-current': 'true', 
             id: this.parameters.id}).append(
             $('<div></div>').addClass('container').append(
                 $('<div></div>').addClass('row d-flex align-items-center').append(
-                    $('<div></div>').addClass('col').append(
-                        $('<input></input>').addClass('form-check-input is-valid me-1')
-                            .attr({type: 'checkbox', value: '', id: 'firstCheckbox'})
-                            .css({'width': '35px', 'height': '35px'}),
-                        $('<div></div>').addClass('invalid-feedback').append('Incorrect initialization')
+                    $('<div></div>').addClass('col-1').append(
+                        this.checkbox,
+                        $('<div></div>').addClass('invalid-feedback').append('fail')
                     ),
                     $('<div></div>').addClass('col').append(
                         $('<div></div>').addClass('d-flex justify-content-between').append(
@@ -416,10 +421,12 @@ class Item {
                         $('<br></br>'),
                         $('<small></small>').append(`ID: ${this.parameters.id}`)
                     ),
-                    $('<div></div>').addClass('col').append(
+                    $('<div></div>').addClass('col-1').append(
                         $('<div></div>').addClass('btn-group-vertical').attr({role: 'group'}).append(
                             $('<button></button>').addClass('btn btn-primary ').append($('<i></i>')
                                 .addClass('bi-gear').css({'font-size': '30px'})).on('click', () => {this.edit(this.parameters.id)}),
+                            $('<button></button>').addClass('btn btn-primary').attr({id: 'result'}).append($('<i></i>')
+                                .addClass('bi-graph-up').css({'font-size': '30px'})).prop('disabled', true).on('click', () => {this.result(this.parameters.id)}),
                             $('<button></button>').addClass('btn btn-primary').append($('<i></i>')
                                 .addClass('bi-trash').css({'font-size': '30px'})).on('click', () => {this.delete(this.parameters.id)})
                         )
@@ -440,6 +447,18 @@ class Item {
      * @param id
      */
     delete(id) {}
+
+    /**
+     * @brief External event handler.
+     * @param id
+     */
+    check() {}
+
+    /**
+     * @brief External event handler.
+     * @param id
+     */
+    result(id) {}
 }
 
 /**
@@ -449,6 +468,16 @@ class Workspace {
     constructor() {
         // store task
         this.tasks = {}
+        // store task object
+        this.task_obj = {}
+        // define problem default parameters
+        this.problem_default = {dimension: 2, initial: [{r: [0, 0], dr: [0, 0], m: 1}, {r: [2, 2], dr: [0, 0], m: 1}, 
+            {r: [1, -2], dr: [0, 0], m: 2}], 
+            physics: {g: 1, t: [0, 50, 1000]}}
+
+        // create socket
+        this.socket = new Socket('/solver')
+
         // build interface
         this.create_elements()
        // assign callback functions
@@ -481,114 +510,138 @@ class Workspace {
     create_callbacks() {
 
         this.modal_edit_task.cancel = () => {this.modal_edit_task.modal.hide()}
-        this.modal_edit_task.apply = () => {this.modal_edit_task.modal.hide()}
+        this.modal_edit_task.apply = () => {
+            
+            let id = this.modal_edit_task.target
+
+            // define state of item according to correcness task problem initialization
+            if (this.task_obj.status()) {
+                // apply data of input from problem object and store them
+                this.tasks[id]['problem'] = this.task_obj.data()
+                this.tasks[id]['problem']['status'] = true
+                this.list.items[id].find('input').addClass('is-valid').removeClass('is-invalid')
+                this.list.items[id].find('input').prop('disabled', false)
+            } else {
+                this.list.items[id].find('input').addClass('is-invalid').removeClass('is-valid')
+                this.list.items[id].find('input').prop('disabled', true)
+            }
+            // hide dialog
+            this.modal_edit_task.modal.hide()
+        }
         
         this.modal_delete_task.cancel = () => {this.modal_delete_task.modal.hide()}
         this.modal_delete_task.confirm = () => {
-            console.log(this.modal_delete_task.target)
             this.modal_delete_task.modal.hide()
             this.list.remove(this.modal_delete_task.target)
             delete this.tasks[this.modal_delete_task.target]
+
+            // define option buttons behaviour
+            if (Object.keys(this.tasks).length === 0 && this.tasks.constructor === Object) {
+                this.option.checkbox.prob('disabled', true)
+                this.option.button_process.prob('disabled', true)
+            }
         }
 
         this.modal_create_task.dialog.proceed = (data) => {
             // TODO separation task types
-            this.modal_edit_task.modal.empty_body()
-            this.tasks[data.id] = new Problem()
-            this.modal_edit_task.modal.append_body(this.tasks[data.id].export)
+            // define task problem parameters
+            this.tasks[data.id] = Object.assign({}, data, {problem: this.problem_default, result: {}})
+
+            // define initial state of option checkbox
+            this.option.checkbox.prop('disabled', false)
+            // define checkbox state accordint to checkobx of ooption panel
+            data['checked'] = this.option.checkbox.prop('checked')
+            // create task item
             let item = new Item(data)
             this.list.append(item.export, data.id)
+            // define state of item according to correcness task problem initialization
+            this.list.items[data.id].find('input').prop('disabled', true)
+            // hide dialog
             this.modal_create_task.modal.hide()
         }
 
+
         // to open task creation dialog
         this.option.add = () => {this.modal_create_task.modal.show()}
+        // to check items
+        this.option.check = () => {
+            let state_array = []
+            // store state option checkbox
+            let state = this.option.checkbox.prop('checked')
+            Object.entries(this.list.items).forEach(([key, item]) => {
+                // assign value attribute according to state of option checkbox
+                if (!item.find('input').prop('disabled')) {
+                    item.find('input').prop('checked', state)
+                    state_array.push(state)
+                }
+            })
+            // define option buttons behaviour
+            state = state_array.reduce((accumulation, element) => accumulation + element, true)
+            if (state > 1) {
+                this.option.button_process.prop('disabled', false)
+            } else {
+                this.option.button_process.prop('disabled', true)
+            }
+        }
 
-        // this.list.item_pattern = (parameters) => {return this.create_item(parameters)}
-
+        // define process bunnot event
+        this.option.process = () => {
+            let tasks = []
+            // task separation
+            Object.entries(this.tasks).forEach(([id, task]) => {
+                if (task['problem']['status']) {
+                    tasks.push(task)
+                }
+            })
+            // send data via socket to server
+            this.socket.emit('process', tasks)
+        }
+        
+        // assign edit task event at pushing editing button of given item 
         Item.prototype.edit = (id) => {
+            // empty previosly content of modal body
             this.modal_edit_task.modal.empty_body()
-            this.tasks[id] = new Problem
-            this.modal_edit_task.modal.append_body(this.tasks[id].export)
+            // define target
+            this.modal_edit_task.target = id
+            // append present content to modal body
+            this.task_obj = new Problem()
+            // assign problem data
+            this.task_obj.data(this.tasks[id]['problem'])
+            this.modal_edit_task.modal.append_body(this.task_obj.export)
+            // this.modal_edit_task.modal.append_body(this.tasks[id].export)
+            // open dialog
             this.modal_edit_task.modal.show()
         }
 
+        // assign edit task event at pushing deleteing button of given item 
         Item.prototype.delete = (id) => {
             this.modal_delete_task.modal.show()
             this.modal_delete_task.target = id
         }
-    }
 
-    /**
-     * @brief Open task creation dialog.
-     */
-    item_create() {
-        this.modal_create_task.modal.show()
-    }
+        Item.prototype.check = () => {
+            let state_array = []
+            Object.entries(this.list.items).forEach(([key, item]) => {
+                if (!item.find('input').prop('disabled')) {
+                    state_array.push(item.find('input').prop('checked'))
+                }
+            })
+            // define option buttons behaviour
+            let state = state_array.reduce((accumulation, element) => accumulation + element, true)
+            if (state > 1) {
+                this.option.button_process.prop('disabled', false)
+            } else {
+                this.option.button_process.prop('disabled', true)
+            }
+        }
 
-    /**
-     * @brief Create task item in list.
-     */
-    proceed(data) {
-        console.log(data)
-        this.list.append(data)
-        this.modal_create_task.modal.hide()
-    }
+        // define socket handler
+        this.socket.socket.on('process', (data) => {
+            this.list.items[data['id']].find('button[id="result"]').prop('disabled', false)
+            console.log(data)
+        })
 
-    /**
-     * @brief Edit item event.
-     * @param id
-     */
-    item_edit(id) {
-        this.modal_edit_task.modal.empty_body()
-        this.tasks[id] = new Problem
-        this.modal_edit_task.modal.append_body(this.tasks[id].export)
-        this.modal_edit_task.modal.show()
     }
-
-    /**
-     * @brief Edit item event.
-     * @param id
-     */
-    item_delete(id) {
-        this.modal_delete_task.modal.show()
-        this.modal_delete_task.target = id
-    }
-
-    create_item(parameters) {
-        return $('<a></a>').addClass('list-group-item').attr({'aria-current': 'true', 
-            id: parameters.id}).append(
-            $('<div></div>').addClass('container').append(
-                $('<div></div>').addClass('row d-flex align-items-center').append(
-                    $('<div></div>').addClass('col').append(
-                        $('<input></input>').addClass('form-check-input is-valid me-1')
-                            .attr({type: 'checkbox', value: '', id: 'firstCheckbox'})
-                            .css({'width': '35px', 'height': '35px'}),
-                        // $('<div></div>').addClass('invalid-feedback').append('Incorrect initialization')
-                    ),
-                    $('<div></div>').addClass('col').append(
-                        $('<div></div>').addClass('d-flex justify-content-between').append(
-                            $('<h5></h5>').addClass('mb-1').append(parameters.name),
-                            $('<small></small>').append(parameters.date),                                        
-                        ),
-                        $('<p></p>').addClass('mb-1').append(`${parameters.type.label}`),
-                        $('<small></small>').append(`Comment: ${parameters.comment}`),
-                        $('<br></br>'),
-                        $('<small></small>').append(`ID: ${parameters.id}`)
-                    ),
-                    $('<div></div>').addClass('col').append(
-                        $('<div></div>').addClass('btn-group-vertical').attr({role: 'group'}).append(
-                            $('<button></button>').addClass('btn btn-primary ').append($('<i></i>')
-                                .addClass('bi-gear').css({'font-size': '30px'})).on('click', () => {this.item_edit(parameters.id)}),
-                            $('<button></button>').addClass('btn btn-primary').append($('<i></i>')
-                                .addClass('bi-trash').css({'font-size': '30px'})).on('click', () => {this.item_delete(parameters.id)})
-                        )
-                    )
-                ),
-            )
-        )
-    }
-
 }
 
 class Menu {
