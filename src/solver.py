@@ -176,7 +176,7 @@ class TaskManager():
             self.mng_lock.release()
         
         # emit results to client socket
-        self.socketio.emit('process', dict(worker = data['worker']), to = sid, namespace = '/solver')
+        self.socketio.emit('process', dict(id = id, worker = data['worker']), to = sid, namespace = '/solver')
         
     def registrate_client(self, sid: str) -> None:
         """Create client account in dict manager."""
@@ -210,12 +210,12 @@ def generate_problem_classical_gravitation_2d() -> dict:
 
 def build_problem_classical_gravitation(data: dict) -> dict:
     """Assemble problem of classical gravitation."""
-    order = len(data['body'])
-    dimension = len(data['body'][0]['r'])
-    mesh = np.linspace(data['param']['t'][0], data['param']['t'][1], num = data['param']['t'][2])
-    m = [value['m'] for value in data['body']]
-    initial = [[body['r'], body['dr']] for body in data['body']]
+    order = len(data['initial'])
+    dimension = len(data['initial'][0]['r'])
+    mesh = np.linspace(data['physics']['t'][0], data['physics']['t'][1], num = data['physics']['t'][2])
+    m = [value['m'] for value in data['initial']]
+    initial = [[body['r'], body['dr']] for body in data['initial']]
     initial = [ii for s in initial for i in s for ii in i]
-    g = data['param']['g']
+    g = data['physics']['g']
     problem = dict(initial = initial, mesh = mesh, dimension = dimension, order = order, m = m, g = g)
     return problem
