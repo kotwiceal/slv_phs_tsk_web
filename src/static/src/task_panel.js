@@ -510,7 +510,8 @@ class Body {
         })
 
         // create delete button
-        this.button_delete = $('<button></button>').addClass('btn btn-primary w-100 h-100').append($('<i></i>').addClass('bi-trash'))
+        this.button_delete = $('<button></button>').addClass('btn btn-primary w-100 h-100').append($('<i></i>')
+            .addClass('bi-trash').css({'font-size': '30px'}))
             .on('click', () => {this.clear()})
         let div_col = $('<div></div>').addClass('col-1')
         div_col.append(this.button_delete)
@@ -1021,6 +1022,8 @@ class Problem {
                 // this.dimension.upload(data['dimension'])
                 this.initialCondition.data(data['initial'])
                 this.physics.data(data['physics'])
+
+                this.preview_update()
             }
         } else {
             let result = {}

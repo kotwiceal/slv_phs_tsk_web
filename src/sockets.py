@@ -27,7 +27,7 @@ def ns_on_disconnect():
 @socketio.on('process', namespace = '/solver')
 def ns_on_channel(data):
     """Start solver to process tasks."""    
-    tasks = [solver.TaskClassicalGravitation(solver.build_problem_classical_gravitation(task['data']), request.sid, task['id'])
+    tasks = [solver.TaskClassicalGravitation(solver.build_problem_classical_gravitation(task['problem']), request.sid, task['id'])
         for task in data]
     app.task_manager.process(tasks)
     

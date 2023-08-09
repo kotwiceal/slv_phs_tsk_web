@@ -59,7 +59,8 @@ class Textarea {
     /**
      * @brief Default criteria function (must be changed).
      * @param value string
-     * @returns bool
+     * @returns object
+     * @example result = {state: false, message: 'invalid value'}
      */
     criteria(value) {
         let result = {state: value == "" ? false : true}
@@ -255,6 +256,120 @@ class Modal {
 }
 
 /**
+ * @bief Input pattern.
+ */
+class Input {
+    /**
+     * @param parameter object
+     * @example parameter = {label: 'label', id: 'id', validation: true}
+     */
+    constructor(parameters) {
+        this.parameters = parameters
+        this.state = false
+        // build interface
+        this.create_elements()
+        // initiate state
+        this.check()
+    }
+
+    /**
+     * @brief Assemble interface based jQuery objects.
+     */
+    create_elements() { 
+        // create input
+        this.input = $('<input>').addClass('form-control is-invalid')
+            .attr({id: this.parameters.id, type: 'text'})
+            .on('blur', () => {this.check()}).on('input', () => {this.check()})
+        // create input label
+        this.label = $('<label></label>').attr({for: this.parameters.id}).append(this.parameters.label)
+        // create status notification
+        this.feedback = $('<div></div>').addClass('isvalid-feedback')
+        // specify output jQuery object 
+        this.export = $('<div></div>').addClass('form-floating').append([this.input, this.label, this.feedback])
+    }
+
+    /**
+     * @brief Assign/extract input data.
+     * @param value string
+     * @returns string
+     */
+    data() {
+        if (arguments.length == 1) {
+            this.input.val(arguments[0])
+            this.check()
+        } 
+        else {
+            return this.input.val()
+        }
+    }
+
+    /**
+     * @brief Handler at input changing event.
+     */
+    check() {
+        if (this.parameters.validation) {
+            this.status(this.criteria(this.data()))
+        } 
+        else {
+            this.state = true
+        }
+        this.event(this.state)
+    }
+
+    /**
+     * @brief Default criteria function (must be changed).
+     * @param value string
+     * @returns objetc
+     * @example result = {state: false, message: 'invalid value'}
+     */
+    criteria(value) {
+        let result = {state: value == "" ? false : true}
+        result['state'] ? result['message'] = 'ok' : result['message'] = 'invalid value'
+        return result
+    }
+
+    /**
+     * @brief Assign appearance according to checking.
+     * @param result object
+     * @example result = {state: false, message: 'invalid value'}
+     * @return bool of state
+     */
+    status(result) {
+        if (arguments.length == 0) {
+            return this.state
+        }
+        else {
+            this.state = result['state']
+            if (this.state) {
+                this.feedback.empty()
+                this.feedback.addClass('valid-feedback').removeClass('invalid-feedback')
+                this.input.addClass('is-valid').removeClass('is-invalid')
+            }
+            else {
+                this.cause(result['message'])
+                this.feedback.addClass('invalid-feedback').removeClass('valid-feedback')
+                this.input.addClass('is-invalid').removeClass('is-valid')
+            }
+        }
+    }
+
+    /**
+     * @brief Display feedback message of input form.
+     * @param message string to explain cause of fail data checking
+     */
+    cause(message) {
+        this.feedback.empty().append(message)
+    }
+
+    /**
+     * @brief External event function.
+     * @param state bool
+     */
+    event(state) {}
+}
+
+
+/**
  * @brief List patters.
  */
 class List {
@@ -268,8 +383,8 @@ class List {
      * @brief Assemble interface based jQuery objects.
      */
     create_elements() {
-        this.div = $('<div></div>').addClass('list-group')
-        this.export = this.div
+        this.list_group = $('<div></div>').addClass('list-group')
+        this.export = this.list_group
     }
 
     /**
@@ -277,15 +392,15 @@ class List {
      * @param parameters object
      */
     append(item, id) {
-        this.items[id] = item
-        this.div.append(item)
+        this.items[item.parameters.id] = item
+        this.list_group.append(this.items[item.parameters.id].export)
     }
 
     /**
      * Erase list.
      */
     empty() {
-        this.div.empty()
+        this.list_group.empty()
     }
 
     /**
@@ -293,8 +408,8 @@ class List {
      */
     remove(key) {
         delete this.items[key]
-        this.div.find(`#${key}`).remove()
+        this.list_group.find(`#${key}`).remove()
     }
 }
 
-export {Textarea, Select, Modal, List}
+export {Textarea, Select, Modal, Input, List}
