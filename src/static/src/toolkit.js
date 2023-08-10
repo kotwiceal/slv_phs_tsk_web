@@ -1,4 +1,162 @@
 /**
+ * @brief Card container to content other elements.
+ */
+class Card {
+    /**
+     * @param header label of card 
+     */
+    constructor(header) {
+        this.header = header
+        // store content
+        this.body = []
+        this.card = $('<div></div>').addClass('card mt-2 mb-4')
+        this.card_header = $('<h5></h5>').addClass('card-header').append(this.header)
+        this.card_body = $('<div></div>').addClass('card-body')
+        this.card.append(this.card_header, this.card_body)
+
+        // specify output jQuery object 
+        this.export = this.card
+    }
+
+    /**
+     * @brief Append to card body
+     * @param body appended object 
+     */
+    append(body) {
+        this.card_body.append(body)
+    }
+
+    /**
+     * @brief Erase content.
+     */
+    empty() {
+        this.card_body.empty()
+    }
+}
+
+/**
+ * @brief Radio group with call event at toggle.
+ */
+class Radios {
+    /**
+     * @param parameters object to specify creating radios
+     */
+    constructor(parameters) {
+
+        // store parameters
+        this.parameters = parameters
+
+        // store radios
+        this.radios = {}
+
+        // create elements
+        this.group = $('<div></div>').addClass('btn-group w-100').attr({role: 'group'})
+
+        // create radios
+        this.parameters['radios'].forEach(parameter => {
+            let label = $('<label></label>').addClass('btn btn-primary').attr({'for': `radio-${parameter.id}`}).append(parameter.label)
+            let input = $('<input>').addClass('btn-check').attr({type: 'radio', name: 'btnradio', value: parameter.value, autocomplete: 'off', id: `radio-${parameter.id}`})
+            input.on('change', () => {this.change(input.val())})
+            this.parameters['value'] === parameter.value ? input.prop('checked', true) : input.prop('checked', false)
+            this.radios[parameter.id] = {input: input, label: label}
+
+            Object.entries(this.radios[parameter.id]).forEach(([id, item]) => {
+                this.group.append(item)
+            })
+
+        })
+
+        this.export = this.group
+    }
+
+    /**
+     * @brief Event function at taggle radio group.
+     * @param value corresponds to given radio
+     */
+    change (value) {}
+
+    /**
+     * @brief Assign/extract input data.
+     * @param value arbitrary: number, string
+     * @returns arbitrary: number, string
+     */
+    data(value) {
+        switch (arguments.length) {
+            case 0:
+                Object.entries(this.radios).forEach(([id, radio]) => {
+                    if (radio.input.prop('checked')) {
+                        return radio.input.val()
+                    }
+                })
+            case 1:
+                Object.entries(this.radios).forEach(([id, radio]) => {
+                    if (radio.input.val() == value) {
+                        radio.input.prop('checked', true)
+                        this.change(value)
+                    }
+                })
+        }
+
+    }
+}
+
+/**
+ * @brief Checking of value correction in field: array size and belonging value of each element to range.
+ * @param value string
+ * @param parameters object
+ * @example parameters = {dim: 16, limit: [0, 15]}
+ * @return result = {state: false, message: 'message'}
+ */
+function JsonChecker (value, parameters) {
+    /**
+     * Check JSON string notation.
+     * @param jsonString - examed string
+     */
+    function isValidJsonString(jsonString) {    
+        if(!(jsonString && typeof jsonString === 'string')) {
+            return false
+        }    
+        try {
+            JSON.parse(jsonString);
+            return true
+        } catch(error) {
+            return false
+        }    
+    }
+
+    let message = ''
+    let state = false
+    let line = value
+    if (isValidJsonString(line)) {
+        let object = JSON.parse(line) 
+        if (typeof object == 'number' && parameters.dim == 1) {
+            state = true
+        }
+        else {
+            // check length array
+            if (object.length == parameters.dim) {
+                // check belonging each element to given range
+                for (let index in object) {
+                    let value = object[index]
+                    state = (!isNaN(value)) ? ((value >= parameters.limit[0] && value <= parameters.limit[1]) ? true : false) : false
+                }
+                if (!state) {
+                    message = `data must be an array with elements in range: ${JSON.stringify(parameters.limit)}`
+                }
+            } else {
+                state = false
+                message = `data must be an array of given size: ${parameters.dim}`
+            }
+        }
+    } else {
+        state = false
+        message = `data must be presented in JSON format`
+    }
+            
+    return {state: state, message: message}
+}
+
+/**
  * @brief Texarea pattern.
  */
 class Textarea {
@@ -412,4 +570,4 @@ class List {
     }
 }
 
-export {Textarea, Select, Modal, Input, List}
+export {Textarea, Select, Modal, Input, List, Card, Radios, JsonChecker}
