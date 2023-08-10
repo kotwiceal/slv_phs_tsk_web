@@ -1,162 +1,7 @@
 import {Textarea, Select, Modal, Input, List} from './toolkit'
-import {Main, Problem} from './task_panel'
+import {Task} from './task_clsgrv'
 
 import {Socket} from './socket'
-
-/**
- * @brief Card container to content other elements.
- */
-class Card {
-    /**
-     * @param header label of card 
-     */
-    constructor() {
-        // create card
-        this.card = $('<div></div>').addClass('card mt-2 mb-4')
-        // create card body
-        this.card_body = $('<div></div>').addClass('card-body')
-        // append
-        this.card.append(this.card_body)
-
-        // specify output jQuery object 
-        this.export = this.card
-    }
-
-    /**
-     * @brief Append to card body
-     * @param obj object 
-     */
-    append(obj) {
-        this.card_body.append(obj.export)
-    }
-
-    /**
-     * @brief Erase content.
-     */
-    empty() {
-        this.card_body.empty()
-    }
-}
-
-/**
- * @brief Vertical tab pattert container.
- */
-class Tab {
-    constructor(parameters) {
-        this.parameters = parameters
-        this.id = this.parameters.id
-        // build interface
-        this.create_elements()
-
-    }
-
-    /**
-     * @brief Assemble interface based jQuery objects.
-     */
-    create_elements() {
-        // create tab link
-        this.button_link = $('<button></button>').addClass('nav-link').attr({type: 'button', 'data-bs-toggle': 'pill',
-            id: `v-pills-${this.parameters.id}-tab`,
-            'data-bs-target': `#v-pills-${this.parameters.id}`, role: 'tab', 
-            'aria-controls': `#v-pills-${this.parameters.id}`, 'aria-selected': 'true'}).append(this.parameters.label)
-        // create container for tab content
-        this.div_content = $('<div></div>').addClass('tab-pane fade').attr({role: 'tabpanel', tabindex: '0', 
-            id: `v-pills-${this.parameters.id}`, 'aria-labelledby': `v-pills-${this.parameters.id}-tab`})
-    }
-
-    /**
-     * @brief Erase content.
-     */
-    empty(){
-        this.div_content.empty()
-    }
-
-    /**
-     * @brief Append content.
-     * @param body jQuery object
-     */
-    append(body) {
-        this.div_content.append(body)
-    }
-}
-
-/**
- * @brief Menu
- */
-class NavTab {
-    /**
-     * @param 
-     */
-    constructor() {
-        // to store tabs
-        this.tabs = {}
-
-        // build interface
-        this.create_elements()
-    }
-
-    /**
-     * @brief Assemble interface based jQuery objects.
-     */
-    create_elements() {
-        // create container
-        this.div_container = $('<div></div>').addClass('d-flex align-items-start')
-        // create contaner to tabs lin
-        this.div_link = $('<div></div>').addClass('nav flex-column nav-pills me-3')
-        // create container to tabs content
-        this.div_content = $('<div></div>').addClass('tab-content')
-        // append
-        this.div_container.append([this.div_link, this.div_content])
-        // specify output jQuery object 
-        this.export = this.div_container
-    }
-
-    /**
-     * @brief Append tabs.
-     * @param tabs object
-     */
-    append(tabs) {
-        if (Array.isArray(tabs)) {
-            tabs.forEach(tab => {
-                let tab_obj = new Tab(tab)
-                this.tabs[tab['id']] = tab_obj
-                this.div_link.append(tab_obj.button_link)
-                this.div_content.append(tab_obj.div_content)
-            })
-        } else {
-            let tab_obj = new Tab(tabs)
-            this.tabs[tabs['id']] = tab_obj
-            this.div_link.append(tab_obj.button_link)
-            this.div_content.append(tab_obj.div_content)
-        }
-    }
-
-    /**
-     * Erase tabs.
-     */
-    empty() {
-        this.tabs = {}
-        this.div_link.empty()
-        this.div_content.empty()
-    }
-
-    /**
-     * Remove tab by keys.
-     */
-    remove(keys) {
-        if (Array.isArray(keys)) {
-            keys.forEach(key => {
-                delete this.tabs[key]
-                this.div_link.find(`button[id="v-pills-${key}-tab"]`).remove()
-                this.div_container.find(`div[id="v-pills-${key}"]`).remove()
-            })
-        } else {
-            delete this.tabs[keys]
-            this.div_link.find(`button[id="v-pills-${keys}-tab"]`).remove()
-            this.div_container.find(`div[id="v-pills-${keys}"]`).remove()
-        }
-    }
-}
 
 /**
  * @brief Dialog to create task
@@ -214,7 +59,7 @@ class Dialog {
      */
     confirm () {
         let data = {type: this.select.data(), name: this.name.data(), comment: this.comment.data(), date: new Date().toLocaleString()}
-        data['id'] = sha256(JSON.stringify(data))
+        data['id'] = sha256(JSON.stringify(data)).slice(0, 32)
         this.proceed(data)
     }
 
@@ -248,7 +93,7 @@ class WorkspaceOptions {
      */
     create_elements() {
         // create checkbox selector
-        this.checkbox = $('<input></input>').addClass('btn-check').prop('disabled', true)
+        this.checkbox = $('<input>').addClass('btn-check').prop('disabled', true)
             .attr({type: 'checkbox', id: 'btncheck', autocomplete: 'off', 'data-bs-placement': 'top', 
             'data-bs-title': 'Select', tabindex: '0', 'data-bs-custom-class': 'custom-tooltip'}).on('input', () => {this.check()}),
         // create add button
@@ -466,6 +311,7 @@ class Progress {
 class Item {
     constructor(parameters) {
         this.parameters = parameters
+        this.state
         // build interface
         this.create_elements()
     }
@@ -474,20 +320,21 @@ class Item {
      * @brief Assemble interface based jQuery objects.
      */
     create_elements() {
-        this.checkbox = $('<input></input>').addClass('form-check-input is-valid me-1')
-            .attr({type: 'checkbox', checked: this.parameters.checked}).css({'width': '35px', 'height': '35px'})
+        // create checkbox
+        this.checkbox = $('<input>').addClass('btn-check')
+            .attr({type: 'checkbox', checked: this.parameters.checked, id: `checkbox-${this.parameters.id}`})
             .on('input', () => {this.check()})
         // create edit button
-        this.button_edit = $('<button></button>').addClass('btn btn-primary ').append($('<i></i>')
+        this.button_edit = $('<button></button>').addClass('btn btn-primary rounded-0').append($('<i></i>')
             .addClass('bi-gear').css({'font-size': '30px'})).on('click', () => {this.edit(this.parameters.id)})
             .attr({'data-bs-placement': 'right', 'data-bs-title': 'Edit', 'data-bs-custom-class': 'custom-tooltip'})
         // create result button
-        this.button_result = $('<button></button>').addClass('btn btn-primary').attr({id: 'result'}).append($('<i></i>')
+        this.button_result = $('<button></button>').addClass('btn btn-primary rounded-0').attr({id: 'result'}).append($('<i></i>')
             .addClass('bi-graph-up').css({'font-size': '30px'})).prop('disabled', true)
             .on('click', () => {this.result(this.parameters.id)})
             .attr({'data-bs-placement': 'right', 'data-bs-title': 'Result', 'data-bs-custom-class': 'custom-tooltip'})
         // create delete button
-        this.button_delete =  $('<button></button>').addClass('btn btn-primary').append($('<i></i>')
+        this.button_delete =  $('<button></button>').addClass('btn btn-primary rounded-0').append($('<i></i>')
             .addClass('bi-trash').css({'font-size': '30px'})).on('click', () => {this.delete(this.parameters.id)})
             .attr({'data-bs-placement': 'right', 'data-bs-title': 'Delete', 'data-bs-custom-class': 'custom-tooltip'})
         // create comment info
@@ -496,40 +343,42 @@ class Item {
         this.comment.textarea.prop('disabled', true).css({'max-height': '100px'})
         this.comment.data(this.parameters.comment)
 
-        // create progress bar
+        this.identity = new Input({label: 'ID', id: 'label-identity', validation: false})
+        this.identity.input.prop('disabled', true)
+        this.identity.data(this.parameters.id)
+        this.identity.input.removeClass('is-invalid')
+
+        // create progress bar ans set initial state
         this.progress = new Progress()
         this.progress.set('25%', 'created')
 
         // specify output jQuery object 
-        this.export = $('<a></a>').addClass('list-group-item').attr({'aria-current': 'true', 
+        this.export = $('<a></a>').addClass('list-group-item border border-primary p-0 rounded-0 mt-3').attr({'aria-current': 'true', 
             id: this.parameters.id}).append(
-            $('<div></div>').addClass('container').append(
-                $('<div></div>').addClass('row d-flex align-items-center').append(
-                    $('<div></div>').addClass('col-1').append(
+                $('<div></div>').addClass('row').append(
+                    $('<div></div>').addClass('col-1 d-flex align-items-center').append(
                         this.checkbox,
-                        $('<div></div>').addClass('invalid-feedback').append('fail')
+                        $('<label></label>').addClass('btn btn-outline-primary rounded-0 h-100').append(
+                            $('<i></i>').addClass('bi-plus-square-fill').css({'font-size': '50px'})).attr({for: `checkbox-${this.parameters.id}`}),
                     ),
-                    $('<div></div>').addClass('col').append(
+                    $('<div></div>').addClass('col mt-3 mb-3').append(
                         $('<div></div>').addClass('d-flex justify-content-between').append(
                             $('<h5></h5>').addClass('mb-1').append(this.parameters.name),
                             $('<small></small>').append('Created: ' + this.parameters.date),                                        
                         ),
                         $('<p></p>').addClass('mb-1').append(`${this.parameters.type.label}`),
+                        this.identity.export,
                         this.comment.export,
-                        // $('<small></small>').append(`Comment: ${this.parameters.comment}`),
                         this.progress.export,
-                        $('<br></br>'),
-                        $('<small></small>').append(`ID: ${this.parameters.id}`)
                     ),
                     $('<div></div>').addClass('col-1').append(
-                        $('<div></div>').addClass('btn-group-vertical').attr({role: 'group'}).append(
+                        $('<div></div>').addClass('btn-group-vertical rounded-0 w-100 h-100').attr({role: 'group'}).append(
                                 this.button_edit,
                                 this.button_result,
                                 this.button_delete
                         )
                     )
                 ),
-            )
         )
 
         // create tooltip
@@ -599,7 +448,6 @@ class Toast {
     }
 }
 
-
 /**
  * @brief Workspace tab interface
  */
@@ -621,6 +469,41 @@ class Workspace {
         this.create_elements()
        // assign callback functions
         this.create_callbacks()
+
+        // bypass
+        this.bypass()
+
+        // initiate state
+        this.check()
+    }
+
+    bypass() {
+        let data = {
+            "type": {
+                "id": "tsk_cgrv",
+                "label": "Classical gravitation"
+            },
+            "name": "Task 1",
+            "comment": "testing element alignment",
+            "date": "09.08.2023, 22:52:50",
+            "id": "ee0a0f7f60b63b8ff71487e43ebda9fc20184aef0dea",
+            "checked": false
+        }
+        
+        // define task problem parameters
+        this.tasks[data.id] = Object.assign({}, data, {problem: this.problem_default, result: {}})
+
+        // define initial state of option checkbox
+        this.option.checkbox.prop('disabled', false)
+
+        // define checkbox state accordint to checkobx of ooption panel
+        data['checked'] = this.option.checkbox.prop('checked')
+
+        // create task item
+        this.list.append(new Item(data))
+
+        // define state of item according to correcness task problem initialization
+        this.list.items[data.id].checkbox.prop('disabled', true)
     }
 
     /**
@@ -643,7 +526,7 @@ class Workspace {
         this.toast = new Toast()
 
         // specify output jQuery object 
-        this.export = $('<div></div>').addClass('container-fluid').append([this.option.export, this.list.export, this.toast.export])
+        this.export = $('<div></div>').addClass('container pt-5').append([this.option.export, this.list.export, this.toast.export])
     }
 
     /**
@@ -657,15 +540,17 @@ class Workspace {
             let id = this.modal_edit_task.target
 
             // define state of item according to correcness task problem initialization
-            if (this.task_obj.status()) {
+            if (this.task_obj.problem.status()) {
                 // apply data of input from problem object and store them
-                this.tasks[id]['problem'] = this.task_obj.data()
+                this.tasks[id]['problem'] = this.task_obj.problem.data()
                 this.tasks[id]['problem']['status'] = true
                 this.list.items[id].checkbox.addClass('is-valid').removeClass('is-invalid')
                 this.list.items[id].checkbox.prop('disabled', false)
                 // set progress status
                 this.list.items[id].progress.set('50%', 'initiated')
                 this.list.items[id].progress.animate(true)
+
+                this.check()
 
             } else {
                 this.list.items[id].checkbox.addClass('is-invalid').removeClass('is-valid')
@@ -687,7 +572,7 @@ class Workspace {
             this.list.remove(this.modal_delete_task.target)
             delete this.tasks[this.modal_delete_task.target]
 
-            // define option buttons behaviour
+            // check empty task: control option buttons behaviour
             if (Object.keys(this.tasks).length === 0 && this.tasks.constructor === Object) {
                 this.option.checkbox.prop('disabled', true)
                 this.option.button_process.prop('disabled', true)
@@ -701,9 +586,11 @@ class Workspace {
             this.tasks[data.id] = Object.assign({}, data, {problem: this.problem_default, result: {}})
 
             // define initial state of option checkbox
-            this.option.checkbox.prop('disabled', false)
+            if (Object.keys(this.tasks).length === 0 && this.tasks.constructor === Object) { 
+                this.option.checkbox.prop('disabled', true)
+            }
 
-            // define checkbox state accordint to checkobx of ooption panel
+            // define checkbox state accorint to checkobx of ooption panel
             data['checked'] = this.option.checkbox.prop('checked')
 
             // create task item
@@ -748,8 +635,10 @@ class Workspace {
         // define process button handler
         this.option.process = () => {
             let tasks = []
+            let tasks_all = []
             // list tasks
             Object.entries(this.tasks).forEach(([id, task]) => {
+                tasks_all.push(tasks_all)
                 // check state of initialization and selected checkbox
                 if (task['problem']['status'] && this.list.items[id].checkbox.prop('checked')) {
                     // accumulate tasks
@@ -763,6 +652,17 @@ class Workspace {
                     this.list.items[id].progress.animate(true)
                 }
             })
+
+            // check
+            if (tasks.length < tasks_all.length) {
+                this.option.button_process.prop('disabled', false)
+                this.option.checkbox.prop('disabled', false)
+            } else {
+                this.option.button_process.prop('disabled', true)
+                this.option.checkbox.prop('disabled', true)
+            }
+            this.option.checkbox.prop('checked', false)
+
             // send data via socket to server
             this.socket.emit('process', tasks)
         }
@@ -775,14 +675,14 @@ class Workspace {
             // define target
             this.modal_edit_task.target = id
 
-            // create problem
-            this.task_obj = new Problem()
+            // create task
+            this.task_obj = new Task()
 
             // set data to problem
-            this.task_obj.data(this.tasks[id]['problem'])
+            this.task_obj.problem.data(this.tasks[id]['problem'])
 
             // display problem content
-            this.modal_edit_task.modal.append_body(this.task_obj.export)
+            this.modal_edit_task.modal.append_body(this.task_obj.problem.export)
 
             // open dialog
             this.modal_edit_task.modal.show()
@@ -795,27 +695,38 @@ class Workspace {
         }
 
         // define check handler
-        Item.prototype.check = () => {
-            let state_array = []
-            Object.entries(this.list.items).forEach(([key, item]) => {
-                // check state of checkbox
-                if (!item.checkbox.prop('disabled')) {
-                    // accumulate state
-                    state_array.push(item.checkbox.prop('checked'))
-                }
-            })
-            // define option buttons behaviour: logical OR
-            let state = state_array.reduce((accumulation, element) => accumulation + element, true)
-            if (state > 1) {
-                this.option.button_process.prop('disabled', false)
-            } else {
-                this.option.button_process.prop('disabled', true)
-            }
+        Item.prototype.check = () => {this.check()}
+
+        // define result handler
+        Item.prototype.result = (id) => {
+            // empty previosly content of modal body
+            this.modal_edit_task.modal.empty_body()
+            // define target
+            this.modal_edit_task.target = id
+
+            // create task
+            this.task_obj = new Task()
+
+            // request
+            let request = {'method': 'POST', 'headers': {'Content-Type': 'application/json'}, 
+                'body': JSON.stringify({id: id, sid: this.socket.socket.id})}
+
+            fetch('/result', request).then(response => response.json()).then(json => {
+                console.log(json)
+            }).catch(error => console.log(error))
+
+            // display problem content
+            this.modal_edit_task.modal.append_body(this.task_obj.result.export)
+
+            // open dialog
+            this.modal_edit_task.modal.show()
+
         }
 
         // define socket handler
         this.socket.socket.on('process', (data) => {
             console.log(data)
+
             // enable result button
             this.list.items[data['id']].button_result.prop('disabled', false)
 
@@ -825,60 +736,72 @@ class Workspace {
 
             // enable checkbox of item            
             this.list.items[data['id']].checkbox.prop('disabled', false)
+            this.check()
 
             this.toast.show(data)
         })
 
     }
+
+    /**
+     * @brief Check all item state.
+     */
+    check() {
+        let state_array = []
+        Object.entries(this.list.items).forEach(([id, item]) => {
+            // check state of checkbox
+            if (!item.checkbox.prop('disabled')) {
+                // accumulate state
+                state_array.push(item.checkbox.prop('checked'))
+            }
+        })
+        // define option buttons behaviour
+        // logical AND
+        let state_and = 0
+        if (state_array.length > 0) {
+            state_and = state_array.reduce((accumulation, element) => accumulation * element, true)
+            if (state_and > 0) {
+                this.option.checkbox.prop('checked', true)
+            } else {
+                this.option.checkbox.prop('checked', false)
+            }
+            this.option.checkbox.prop('disabled', false)
+        } else {
+            this.option.checkbox.prop('disabled', true)
+        }
+
+        // logical OR
+        let state_or = 0
+        if (state_array.length > 0) {
+            state_or = state_array.reduce((accumulation, element) => accumulation + element, false)
+        }
+        if (state_or > 0) {
+            this.option.button_process.prop('disabled', false)
+        } else {
+            this.option.button_process.prop('disabled', true)
+        }
+    }
 }
 
-class Menu {
+class App {
     constructor(parent) {
         this.parent = parent
 
         // build interface
-        // this.create_elements()
-        this.bypass_interface()
+        this.create_elements()
     }
 
     /**
      * @brief Assemble interface based jQuery objects.
      */
     create_elements() {
-
         // create container
         this.div_container = $('<div></div>').addClass('container')
-            .css({'padding-top': '5vh', 'width': '50%'})
-
-        // create card
-        this.card = new Card()
-        // create navtab
-        this.navtab = new NavTab()
-        this.card.append(this.navtab)
-
-        // append to parent
-        this.div_container.append(this.card.export)
-        this.parent.append(this.div_container)
-
-        // create tabs
-        let parameters = [{id: 'workspace', label: 'Workspace'}, {id: 'profile', label: 'Profile'}]
-        this.navtab.append(parameters)
-        
+        // create workspace
         this.workspace = new Workspace()
-        this.navtab.tabs['workspace'].append(this.workspace.export)
-
-    }
-
-    bypass_interface() {
-        // create container
-        this.div_container = $('<div></div>').addClass('container')
-            .css({'padding-top': '5vh', 'width': '50%'})
-        this.workspace = new Workspace()
-
         this.div_container.append(this.workspace.export)
-
-        this.parent.append(this.div_container)
+        this.parent.append(this.workspace.export)
     }
 }
 
-export {Menu}
+export {App}
