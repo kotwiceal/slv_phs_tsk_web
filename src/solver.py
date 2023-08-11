@@ -34,11 +34,9 @@ def worker_watcher(mng_dkt, mng_lock):
 
 class TaskClassicalGravitation:
     """Numerical solving the cauchy problem of classical gravitation."""
-    def __init__(self, problem: dict, sid: str, id: str) -> None:
-        self.problem = problem
-        self.sid = sid
-        self.id = id
-        self.layout = {}
+    _valid_attr = ['problem', 'sid', 'id']
+    def __init__(self, **kwargs) -> None:
+        [setattr(self, key, kwargs.get(key, None)) for key in kwargs.keys() if key in self._valid_attr]
         self.status = False
     
     # @worker_info
@@ -54,7 +52,6 @@ class TaskClassicalGravitation:
             self.r = solution[:, ::2].reshape(shape)
             self.dr = solution[:, 1::2].reshape(shape)
             self.status = True
-            plot = self.plot()
         except Exception:
             self.r = np.array([])
             self.dr = np.array([])
@@ -63,12 +60,28 @@ class TaskClassicalGravitation:
             # assemble results
             result = dict(task_name = self.__class__.__name__, sid = self.sid, id = self.id,
                 solution = dict(r = self.r, dr = self.dr, status = self.status), 
-                problem = self.problem) | plot
+                problem = self.problem)
         return result
     
-    def solve_w(self, mng_dkt, mng_lock):
+    def process(self, mng_dkt, mng_lock):
         """Solve task at parallelized worker session."""
         worker_watcher(mng_dkt, mng_lock)(self.solve)()
+        
+    def postprocess(self, mng_dkt, mng_lock):
+        """Solve task at parallelized worker session."""
+        # extract data
+        try:
+            # acquire lock
+            mng_lock.acquire()
+            solution = mng_dkt[self.sid][self.id]['solution'].copy()
+        except:
+            # empty record by SID or/and ID
+            solution = dict(status = False)
+        finally:
+            # release lock
+            mng_lock.release()
+        if solution['status']:
+            worker_watcher(mng_dkt, mng_lock)(self.export)(solution, self.sid, self.id)
 
     def system_equations(self, argument: np.ndarray, t: float, *parameters) -> np.ndarray:
         """Assemble the cauchy problem."""
@@ -106,45 +119,104 @@ class TaskClassicalGravitation:
         vector = np.zeros(2 * order * dimension)
         vector[0::2] = dr
         vector[1::2] = ddr.flatten()
-        return vector
-    
-    def plot_trajectory(self) -> str:
-        """Plot the space trajectory."""
+        return vector       
+        
+    @staticmethod
+    def plot(vector, layout) -> str:
+        """Plot the space/phase trajectory."""
         try:
-            index = np.arange(self.problem['order'])
-            match self.problem['dimension']:
+            # define axis range
+            vector_min = np.min(vector, (0, 1))
+            vector_max = np.max(vector, (0, 1))
+            index = np.arange(vector.shape[1])
+            # select dimension
+            match vector.shape[2]:
                 case 2:
-                    data = [go.Scatter(x = self.r[:, i, 0], y = self.r[:, i, 1], mode = 'lines', name = str(i + 1))
+                    data = [go.Scatter(x = [vector[0, i, 0]], y = [vector[0, i, 1]], mode = 'lines', name = str(i + 1))
                         for i in index]
-                case 3:
-                    data = [go.Scatter3d(x = self.r[:, i, 0], y = self.r[:, i, 1], z = self.r[:, i, 2], 
-                        mode = 'lines', name = str(i + 1)) for i in index]
-            figure = json.loads(go.Figure(data = data, layout = dict(title = 'Trajectory')).to_json())
+                    layout_axis = dict(xaxis = dict(range = [vector_min[0], vector_max[0]], autorange = False),
+                        yaxis = dict(range = [vector_min[1], vector_min[1]], scaleanchor = 'x', scaleratio = 1, autorange = False))                    
+                case 3:                  
+                    data = [go.Scatter3d(x = [vector[0, i, 0]], y = [vector[0, i, 1]], z = [vector[0, i, 2]], mode = 'lines', name = str(i + 1))
+                        for i in index]
+                    layout_axis = dict(xaxis = dict(range = [vector_min[0], vector_max[0]], autorange = False),
+                        yaxis = dict(range = [vector_min[1], vector_min[1]], scaleanchor = 'x', scaleratio = 1, autorange = False),
+                        zaxis = dict(range = [vector_min[2], vector_min[2]], scaleanchor = 'x', scaleratio = 1, autorange = False))   
+            # create layout
+            layout = dict(hovermode = 'closest') | layout_axis | layout
+            # create figure
+            figure = json.loads(go.Figure(data = data, layout = layout).to_json())
         except Exception:
             figure = {}
         finally:
             return figure
         
-    def plot_velocity(self) -> str:
-        """Plot the phase trajectory."""
+    @staticmethod
+    def animate(vector, n_trace, layout) -> str:
+        """Animation plot the space/phase trajectory."""
         try:
-            index = np.arange(self.problem['order'])
-            match self.problem['dimension']:
+            n_frame = vector.shape[0]
+                        
+            # define axis range
+            vector_min = np.min(vector, (0, 1))
+            vector_max = np.max(vector, (0, 1))
+            
+            # contains enumeration of bodies
+            index = np.arange(vector.shape[1])
+            # select dimension
+            match vector.shape[2]:
                 case 2:
-                    data = [go.Scatter(x = self.dr[:, i, 0], y = self.dr[:, i, 1], mode = 'lines', name = str(i + 1))
+                    data = [go.Scatter(x = [vector[0, i, 0]], y = [vector[0, i, 1]], mode = 'markers', name = str(i + 1))
                         for i in index]
-                case 3:
-                    data = [go.Scatter3d(x = self.dr[:, i, 0], y = self.dr[:, i, 1], z = self.dr[:, i, 2], 
-                        mode = 'lines', name = str(i + 1)) for i in index]
-            figure = json.loads(go.Figure(data = data, layout = dict(title = 'Velocity')).to_json())
+                    frames = [go.Frame(data = [go.Scatter(x = vector[nf-n_trace:nf, i, 0], y = vector[nf-n_trace:nf, i, 1], mode = 'lines') 
+                            if nf > n_trace else go.Scatter(x = vector[0:nf, i, 0], y = vector[0:nf, i, 1], mode = 'lines')
+                            for i in index]) for nf in np.arange(n_frame)]
+                    layout_axis = dict(xaxis = dict(range = [vector_min[0], vector_max[0]], autorange = False),
+                        yaxis = dict(range = [vector_min[1], vector_min[1]], scaleanchor = 'x', scaleratio = 1, autorange = False))                    
+                case 3:                  
+                    data = [go.Scatter3d(x = [vector[0, i, 0]], y = [vector[0, i, 1]], z = [vector[0, i, 2]], mode = 'markers', name = str(i + 1))
+                        for i in index]
+                    frames = [go.Frame(data = [go.Scatter3d(x = vector[nf-n_trace:nf, i, 0], y = vector[nf-n_trace:nf, i, 1], z = vector[nf-n_trace:nf, i, 2], mode = 'lines') 
+                            if nf > n_trace else go.Scatter3d(x = vector[0:nf, i, 0], y = vector[0:nf, i, 1], z = vector[nf-n_trace:nf, i, 2], mode = 'lines')
+                            for i in index]) for nf in np.arange(n_frame)]
+                    layout_axis = dict(xaxis = dict(range = [vector_min[0], vector_max[0]], autorange = False),
+                        yaxis = dict(range = [vector_min[1], vector_min[1]], scaleanchor = 'x', scaleratio = 1, autorange = False),
+                        zaxis = dict(range = [vector_min[2], vector_min[2]], scaleanchor = 'x', scaleratio = 1, autorange = False))   
+            # create animate button
+            button_animate = dict(label = 'Play', method = 'animate', 
+                args = [None, dict(frame = dict(duration = 0, redraw = False), transition = dict(duration = 0), mode = 'immediate')])
+            # create layout
+            layout = dict(updatemenus = [dict(type = 'buttons', buttons = [button_animate])], 
+                hovermode = 'closest') | layout_axis | layout
+            # create figure
+            figure = json.loads(go.Figure(data = data, layout = layout, frames = frames).to_json())
         except Exception:
             figure = {}
         finally:
             return figure
-            
-    def plot(self) -> dict:  
-        result = dict(plot = dict(trajectory = self.plot_trajectory(), velocity = self.plot_velocity())) if self.status else dict(plot = {})
-        return result
+        
+    @classmethod
+    def export(cls, solution, sid, id):
+        try:
+            n_slice = 10
+            n_trace = 50
+            # extract data
+            r = solution['r']
+            dr = solution['dr']            
+            # date reduction
+            r = r[::n_slice, :, :]
+            dr = dr[::n_slice, :, :]
+            # build figures
+            plots = dict(trajectory = cls.plot(r, dict(title = 'Space trajectory')),
+                velocity = cls.plot(dr, dict(title = 'Phase trajectory')))
+            animations = dict(trajectory = cls.animate(r, n_trace, dict(title = 'Space trajectory')),
+                velocity = cls.animate(dr, n_trace, dict(title = 'Phase trajectory')))
+        except:
+            plots = {}
+            animations = {}
+        finally:
+            result = dict(sid = sid, id = id, plots = plots, animations = animations)
+            return result
 
 class TaskManager():
     """Task manager to parallelize solvers"""
@@ -160,12 +232,19 @@ class TaskManager():
         self.task = []
     
     def process(self, tasks: list) -> None:
-        """Launch pool session."""
+        """Launch pool processing session."""
         print(f'TaskManager: process({tasks})')
-        [self.pool.apply_async(task.solve_w, args = (self.mng_dkt, self.mng_lock,), 
-            callback = lambda result, sid = task.sid, id = task.id: self.callback(sid, id, result)) for task in tasks]   
+        [self.pool.apply_async(task.process, args = (self.mng_dkt, self.mng_lock,), 
+            callback = lambda result, channel = 'process', sid = task.sid, id = task.id: self.callback(channel, sid, id, result)) for task in tasks]   
     
-    def callback(self, sid, id, result) -> None:
+    def postprocess(self, tasks: list) -> None:
+        """Launch pool postprocessing session."""
+        print(f'TaskManager: postprocess({tasks})')
+        [self.pool.apply_async(task.postprocess, args = (self.mng_dkt, self.mng_lock,), 
+            callback = lambda result, channel = 'postprocess', sid = task.sid, id = task.id: self.callback(channel, sid, id, result)) for task in tasks] 
+        pass
+    
+    def callback(self, channel, sid, id, result) -> None:
         """Callback function at finishing task."""
         try:
             # acquire lock
@@ -176,7 +255,7 @@ class TaskManager():
             self.mng_lock.release()
         
         # emit results to client socket
-        self.socketio.emit('process', dict(id = id, worker = data['worker']), to = sid, namespace = '/solver')
+        self.socketio.emit(channel, dict(id = id, worker = data['worker']), to = sid, namespace = '/solver')
         
     def registrate_client(self, sid: str) -> None:
         """Create client account in dict manager."""
@@ -193,29 +272,14 @@ class TaskManager():
         self.pool.close()
         self.pool.join()
 
-def generate_problem_classical_gravitation_2d() -> dict:
-    """Test task initialization in 2D configuration."""
-    order = 3
-    dimension = 2
-    mesh = np.linspace(0, 25, num = 10000)
-    m = np.array([1.1, 1.2, 1.3])
-    g = 1
-    initial = np.zeros((order, 2 * dimension))
-    initial = initial.flatten()
-    initial[[0, 2]] = np.array([-1, 1]) + np.random.rand(2)*0.01
-    initial[[4, 6]] = np.array([1, 0]) + np.random.rand(2)*0.01
-    initial[[8, 10]] = np.array([0, 1]) + np.random.rand(2)*0.01
-    problem = dict(initial = initial, mesh = mesh, dimension = dimension, order = order, m = m, g = g)
-    return problem
-
 def build_problem_classical_gravitation(data: dict) -> dict:
     """Assemble problem of classical gravitation."""
     order = len(data['initial'])
     dimension = len(data['initial'][0]['r'])
     mesh = np.linspace(data['physics']['t'][0], data['physics']['t'][1], num = data['physics']['t'][2])
     m = [value['m'] for value in data['initial']]
-    initial = [[body['r'], body['dr']] for body in data['initial']]
-    initial = [ii for s in initial for i in s for ii in i]
+    initial = np.array([[body['r'], body['dr']] for body in data['initial']])
+    initial = np.moveaxis(initial, (0, 1, 2), (0, 2, 1)).flatten()
     g = data['physics']['g']
     problem = dict(initial = initial, mesh = mesh, dimension = dimension, order = order, m = m, g = g)
     return problem

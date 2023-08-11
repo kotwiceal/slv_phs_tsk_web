@@ -458,9 +458,9 @@ class Workspace {
         // store task object
         this.task_obj = {}
         // define problem default parameters
-        this.problem_default = {dimension: 2, initial: [{r: [0, 0], dr: [0, 0], m: 1}, {r: [2, 2], dr: [0, 0], m: 1}, 
+        this.problem_default = {dimension: 2, initial: [{r: [-2, 0], dr: [0, 0], m: 1}, {r: [2, 2], dr: [0, 0], m: 1}, 
             {r: [1, -2], dr: [0, 0], m: 2}], 
-            physics: {g: 1, t: [0, 50, 1000]}}
+            physics: {g: 1, t: [0, 100, 10000]}}
 
         // create socket
         this.socket = new Socket('/solver')
@@ -544,6 +544,7 @@ class Workspace {
                 // apply data of input from problem object and store them
                 this.tasks[id]['problem'] = this.task_obj.problem.data()
                 this.tasks[id]['problem']['status'] = true
+                this.list.items[id].button_result.prop('disabled', true)
                 this.list.items[id].checkbox.addClass('is-valid').removeClass('is-invalid')
                 this.list.items[id].checkbox.prop('disabled', false)
                 // set progress status
@@ -553,6 +554,7 @@ class Workspace {
                 this.check()
 
             } else {
+                this.list.items[id].button_result.prop('disabled', true)
                 this.list.items[id].checkbox.addClass('is-invalid').removeClass('is-valid')
                 this.list.items[id].checkbox.prop('disabled', true)
                 // set progress status
@@ -642,7 +644,7 @@ class Workspace {
                 // check state of initialization and selected checkbox
                 if (task['problem']['status'] && this.list.items[id].checkbox.prop('checked')) {
                     // accumulate tasks
-                    tasks.push(task)
+                    tasks.push({id: task['id'], type: task['type'], problem: task['problem']})
 
                     // disabled checkbox of item
                     this.list.items[id].checkbox.prop('disabled', true)
@@ -699,33 +701,14 @@ class Workspace {
 
         // define result handler
         Item.prototype.result = (id) => {
-            // empty previosly content of modal body
-            this.modal_edit_task.modal.empty_body()
-            // define target
-            this.modal_edit_task.target = id
-
-            // create task
-            this.task_obj = new Task()
-
             // request
-            let request = {'method': 'POST', 'headers': {'Content-Type': 'application/json'}, 
-                'body': JSON.stringify({id: id, sid: this.socket.socket.id})}
-
-            fetch('/result', request).then(response => response.json()).then(json => {
-                console.log(json)
-            }).catch(error => console.log(error))
-
-            // display problem content
-            this.modal_edit_task.modal.append_body(this.task_obj.result.export)
-
-            // open dialog
-            this.modal_edit_task.modal.show()
-
+            this.socket.emit('postprocess', [{id: id, type: this.tasks[id]['type']}])
         }
 
         // define socket handler
         this.socket.socket.on('process', (data) => {
-            console.log(data)
+            // store process info
+            this.tasks[data['id']]['solution'] = {worker: data['worker']}
 
             // enable result button
             this.list.items[data['id']].button_result.prop('disabled', false)
@@ -739,6 +722,46 @@ class Workspace {
             this.check()
 
             this.toast.show(data)
+        })
+
+        // handler at task postprocessing is performed
+        this.socket.socket.on('postprocess', async (data) => {
+
+            // store process info
+            this.tasks[data['id']]['result'] = {worker: data['worker']}
+
+            // empty previosly content of modal body
+            this.modal_edit_task.modal.empty_body()
+            // define target
+            this.modal_edit_task.target = data['id']
+
+            // create task
+            this.task_obj = new Task()
+
+            let request = {'method': 'POST', 'headers': {'Content-Type': 'application/json'}, 
+                'body': JSON.stringify({id: data['id'], sid: this.socket.socket.id})}
+
+            let figures = {}
+
+            await fetch('/postprocess', request).then(response => response.json()).then(json => {
+                figures = json
+
+                // store resuts
+                Object.entries(json).forEach(([key, value]) => {
+                    this.tasks[data['id']]['result'][key] = value
+                })
+            }).catch(error => console.log(error))
+
+            // display problem content
+            this.modal_edit_task.modal.append_body(this.task_obj.result.export)
+
+            // open dialog
+            this.modal_edit_task.modal.show()
+
+            setTimeout(() => {
+                this.task_obj.result.plot(figures['animations']['trajectory'])
+            }, 500)
+
         })
 
     }

@@ -2,9 +2,10 @@
 Return: modified flask instance
 """
 # load app instance
-from src import app
+from src import app, solver
 
 from flask import request
+import numpy, dill
 
 @app.route('/')
 def index():
@@ -16,15 +17,15 @@ def route_static_file(path):
     """Route static files located in `static_url_path`"""
     return app.send_static_file('./dist/' + path)
 
-@app.route('/result', methods = ['GET', 'POST'])
-def result():
+@app.route('/postprocess', methods = ['GET', 'POST'])
+def postprocess():
     response = request.get_json()
-    print(response)
     try:
         # acquire lock
         app.task_manager.mng_lock.acquire()
-        data = app.task_manager.mng_dkt[response['sid']][response['id']]
+        plots = app.task_manager.mng_dkt[response['sid']][response['id']]['plots'].copy()
+        animations = app.task_manager.mng_dkt[response['sid']][response['id']]['animations'].copy()
     finally:
         # release lock
         app.task_manager.mng_lock.release()
-    return data
+    return dict(plots = plots, animations = animations)
