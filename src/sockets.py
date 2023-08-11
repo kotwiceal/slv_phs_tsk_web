@@ -25,9 +25,22 @@ def ns_on_disconnect():
     print(f'client with id {currentSocketId} disconnect in namespace')
     
 @socketio.on('process', namespace = '/solver')
-def ns_on_channel(data):
-    """Start solver to process tasks."""    
-    tasks = [solver.TaskClassicalGravitation(solver.build_problem_classical_gravitation(task['problem']), request.sid, task['id'])
-        for task in data]
+def ns_on_process(data):
+    """Start solver to process tasks."""   
+    tasks = []  
+    for task in data:
+        match task['type']['id']:
+            case 'tsk_cgrv':
+                tasks.append(solver.TaskClassicalGravitation(problem = solver.build_problem_classical_gravitation(task['problem']), 
+                    sid = request.sid, id = task['id']))
     app.task_manager.process(tasks)
     
+@socketio.on('postprocess', namespace = '/solver')
+def ns_on_postprocess(data):
+    """Start solver to postprocess tasks."""
+    tasks = []  
+    for task in data:
+        match task['type']['id']:
+            case 'tsk_cgrv':
+                tasks.append(solver.TaskClassicalGravitation(sid = request.sid, id = task['id']))
+    app.task_manager.postprocess(tasks)

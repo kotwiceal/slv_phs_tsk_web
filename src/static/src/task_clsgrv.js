@@ -627,8 +627,8 @@ class Problem {
         this.preview = new Preview(this.parameters['preview'])
 
         // specify output jQuery object 
-        this.export = $('<div></div>').addClass('container').append([this.dimension.export, this.initialCondition.export, this.preview.export, 
-            this.physics.export])
+        this.export = $('<div></div>').addClass('container').append([this.physics.export, this.dimension.export, 
+            this.initialCondition.export, this.preview.export])
     }
 
     /**
@@ -725,6 +725,12 @@ class Problem {
  */
 class Result {
     constructor() {
+        this.id = 'task-plot-result'
+
+        this.layout = {autosize: true,
+            plot_bgcolor: $('body').css('background-color'), paper_bgcolor: $('body').css('background-color'), 
+            font: {color: $('body').css('color')}}
+
         // build interface
         this.create_elements()
         // create callbacks
@@ -736,7 +742,7 @@ class Result {
      */
     create_elements() {
         // create figure
-        this.figure = $('<div></div>').addClass('container-fluid w-100').attr('id', 'result')
+        this.figure = $('<div></div>').addClass('container-fluid w-100').attr({id: this.id})
 
         this.export = this.figure
     }
@@ -746,7 +752,19 @@ class Result {
      */
     create_callbacks() {
 
-        
+    }
+
+    plot(figure) {
+        Object.entries(this.layout).forEach(([key, item]) => {
+            figure['layout'][key] = item
+        })
+        figure['layout']['updatemenus']['bgcolor'] = this.layout['plot_bgcolor']
+        figure['layout']['updatemenus']['font'] = this.layout['font']
+        figure['layout']['template'] = 'plotly_dark'
+
+        Plotly.newPlot(this.id, figure['data'], figure['layout'], {responsive: true}).then(() => {
+            Plotly.addFrames(this.id, figure['frames'])
+        })
     }
 }
 
