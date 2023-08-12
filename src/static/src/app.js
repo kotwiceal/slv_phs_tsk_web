@@ -84,6 +84,7 @@ class Dialog {
  */
 class WorkspaceOptions {
     constructor() {
+        this.font_size = '30px'
         // build interface
         this.create_elements()
     }
@@ -97,11 +98,11 @@ class WorkspaceOptions {
             .attr({type: 'checkbox', id: 'btncheck', autocomplete: 'off', 'data-bs-placement': 'top', 
             'data-bs-title': 'Select', tabindex: '0', 'data-bs-custom-class': 'custom-tooltip'}).on('input', () => {this.check()}),
         // create add button
-        this.button_add = $('<button></button>').addClass('btn btn-primary').append($('<i></i>').addClass('bi-plus-lg').css({'font-size': '30px'}))                  
+        this.button_add = $('<button></button>').addClass('btn btn-primary').append($('<i></i>').addClass('bi-window-plus').css({'font-size': this.font_size}))                  
             .attr({type: 'button', 'data-bs-placement': 'top', 
             'data-bs-title': 'Add', 'data-bs-custom-class': 'custom-tooltip'}).on('click', () => {this.add()}),
         // create process button
-        this.button_process = $('<button></button>').addClass('btn btn-primary').append($('<i></i>').addClass('bi-cpu').css({'font-size': '30px'}))
+        this.button_process = $('<button></button>').addClass('btn btn-primary').append($('<i></i>').addClass('bi-cpu').css({'font-size': this.font_size}))
             .attr({type: 'button', 'data-bs-placement': 'top', 
             'data-bs-title': 'Process', 'data-bs-custom-class': 'custom-tooltip'}).prop('disabled', true).on('click', () => {this.process()})
         // specify output jQuery object 
@@ -110,7 +111,7 @@ class WorkspaceOptions {
                 $('<div></div>').addClass('btn-group w-100').attr({role: 'group'}).append(
                     this.checkbox,
                     $('<label></label>').addClass('btn btn-outline-primary').append(
-                        $('<i></i>').addClass('bi-ui-checks').css({'font-size': '30px'})).attr({for: 'btncheck'}),
+                        $('<i></i>').addClass('bi-ui-checks').css({'font-size': this.font_size})).attr({for: 'btncheck'}),
                     this.button_add,
                     this.button_process
                 )
@@ -548,7 +549,7 @@ class Workspace {
                 this.list.items[id].checkbox.addClass('is-valid').removeClass('is-invalid')
                 this.list.items[id].checkbox.prop('disabled', false)
                 // set progress status
-                this.list.items[id].progress.set('50%', 'initiated')
+                this.list.items[id].progress.set('32%', 'initiated')
                 this.list.items[id].progress.animate(true)
 
                 this.check()
@@ -558,7 +559,7 @@ class Workspace {
                 this.list.items[id].checkbox.addClass('is-invalid').removeClass('is-valid')
                 this.list.items[id].checkbox.prop('disabled', true)
                 // set progress status
-                this.list.items[id].progress.set('25%', 'created')
+                this.list.items[id].progress.set('16%', 'created')
                 this.list.items[id].progress.animate(true)
                 this.list.items[id].check()
             }
@@ -650,7 +651,7 @@ class Workspace {
                     this.list.items[id].checkbox.prop('disabled', true)
 
                     // set progress status
-                    this.list.items[id].progress.set('75%', 'processing')
+                    this.list.items[id].progress.set('48%', 'processing')
                     this.list.items[id].progress.animate(true)
                 }
             })
@@ -701,20 +702,33 @@ class Workspace {
 
         // define result handler
         Item.prototype.result = (id) => {
-            // request
-            this.socket.emit('postprocess', [{id: id, type: this.tasks[id]['type']}])
+            if (this.tasks[id]['result'].hasOwnProperty('worker')) {
+                //  task had been postprocessed 
+                this.show_resutl(id)
+            } else {
+                // task not had been postprocessed 
+                // request
+                this.socket.emit('postprocess', [{id: id, type: this.tasks[id]['type']}])
+                // set progress status
+                this.list.items[id].progress.set('80%', 'postprocessing')
+                this.list.items[id].progress.animate(true)
+                // disable result button
+                this.list.items[id].button_result.prop('disabled', true)
+            }
         }
 
         // define socket handler
         this.socket.socket.on('process', (data) => {
             // store process info
             this.tasks[data['id']]['solution'] = {worker: data['worker']}
+            // remove previous result
+            this.tasks[data['id']]['result'] = {}
 
             // enable result button
             this.list.items[data['id']].button_result.prop('disabled', false)
 
             // set progress status
-            this.list.items[data['id']].progress.set('100%', 'processed')
+            this.list.items[data['id']].progress.set('64%', 'processed')
             this.list.items[data['id']].progress.animate(false)
 
             // enable checkbox of item            
@@ -726,17 +740,12 @@ class Workspace {
 
         // handler at task postprocessing is performed
         this.socket.socket.on('postprocess', async (data) => {
-
             // store process info
             this.tasks[data['id']]['result'] = {worker: data['worker']}
 
-            // empty previosly content of modal body
-            this.modal_edit_task.modal.empty_body()
-            // define target
-            this.modal_edit_task.target = data['id']
-
-            // create task
-            this.task_obj = new Task()
+            // set progress status
+            this.list.items[data['id']].progress.set('100%', 'postprocessed')
+            this.list.items[data['id']].progress.animate(false)
 
             let request = {'method': 'POST', 'headers': {'Content-Type': 'application/json'}, 
                 'body': JSON.stringify({id: data['id'], sid: this.socket.socket.id})}
@@ -744,24 +753,13 @@ class Workspace {
             let figures = {}
 
             await fetch('/postprocess', request).then(response => response.json()).then(json => {
-                figures = json
-
                 // store resuts
                 Object.entries(json).forEach(([key, value]) => {
                     this.tasks[data['id']]['result'][key] = value
                 })
+                // enable result button
+                this.list.items[data['id']].button_result.prop('disabled', false)
             }).catch(error => console.log(error))
-
-            // display problem content
-            this.modal_edit_task.modal.append_body(this.task_obj.result.export)
-
-            // open dialog
-            this.modal_edit_task.modal.show()
-
-            setTimeout(() => {
-                this.task_obj.result.plot(figures['animations']['trajectory'])
-            }, 500)
-
         })
 
     }
@@ -803,6 +801,30 @@ class Workspace {
         } else {
             this.option.button_process.prop('disabled', true)
         }
+    }
+
+    /**
+     * @brief Show result.
+     */
+    show_resutl(id) {
+        // empty previosly content of modal body
+        this.modal_edit_task.modal.empty_body()
+        // define target
+        this.modal_edit_task.target = id
+
+        // create task
+        this.task_obj = new Task()
+        this.task_obj.result.data = this.tasks[id]['result']
+
+        // display problem content
+        this.modal_edit_task.modal.append_body(this.task_obj.result.export)
+
+        // open dialog
+        this.modal_edit_task.modal.show()
+
+        setTimeout(() => {
+            this.task_obj.result.plot()
+        }, 500)
     }
 }
 
