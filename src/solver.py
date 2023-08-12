@@ -132,12 +132,12 @@ class TaskClassicalGravitation:
             # select dimension
             match vector.shape[2]:
                 case 2:
-                    data = [go.Scatter(x = [vector[0, i, 0]], y = [vector[0, i, 1]], mode = 'lines', name = str(i + 1))
+                    data = [go.Scatter(x = vector[:, i, 0], y = vector[:, i, 1], mode = 'lines', name = str(i + 1))
                         for i in index]
                     layout_axis = dict(xaxis = dict(range = [vector_min[0], vector_max[0]], autorange = False),
                         yaxis = dict(range = [vector_min[1], vector_min[1]], scaleanchor = 'x', scaleratio = 1, autorange = False))                    
                 case 3:                  
-                    data = [go.Scatter3d(x = [vector[0, i, 0]], y = [vector[0, i, 1]], z = [vector[0, i, 2]], mode = 'lines', name = str(i + 1))
+                    data = [go.Scatter3d(x = vector[:, i, 0], y = vector[:, i, 1], z = vector[:, i, 2], mode = 'lines', name = str(i + 1))
                         for i in index]
                     layout_axis = dict(xaxis = dict(range = [vector_min[0], vector_max[0]], autorange = False),
                         yaxis = dict(range = [vector_min[1], vector_min[1]], scaleanchor = 'x', scaleratio = 1, autorange = False),

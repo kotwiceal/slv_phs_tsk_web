@@ -1,4 +1,4 @@
-import {Input, Card, Radios, JsonChecker} from './toolkit'
+import {Input, Card, Radios, JsonChecker, Select} from './toolkit'
 
 /**
  * @brief Container to specify dimension of task.
@@ -725,7 +725,16 @@ class Problem {
  */
 class Result {
     constructor() {
-        this.id = 'task-plot-result'
+        this.data = {}
+        this.parameters = {
+            figure: {id: 'task-plot-result'},
+            select: {id: 'graph-select', label: 'Type', options: [
+                {label: 'Plot: space trajectory', id: 'plt_trj_sp', value: 'plt_trj_sp', selected: true},
+                {label: 'Plot: phase trajectory', id: 'plt_trj_ph', value: 'plt_trj_ph', selected: false},
+                {label: 'Animation: space trajectory', id: 'ani_trj_sp', value: 'ani_trj_sp', selected: false},
+                {label: 'Animation: phase trajectory', id: 'ani_trj_ph', value: 'ani_trj_ph', selected: false}
+            ]}
+        }
 
         this.layout = {autosize: true,
             plot_bgcolor: $('body').css('background-color'), paper_bgcolor: $('body').css('background-color'), 
@@ -742,29 +751,70 @@ class Result {
      */
     create_elements() {
         // create figure
-        this.figure = $('<div></div>').addClass('container-fluid w-100').attr({id: this.id})
+        this.figure = $('<div></div>').addClass('container-fluid').attr({id: this.parameters.figure.id})
 
-        this.export = this.figure
+        // create select
+        this.select = new Select(this.parameters.select)
+
+        this.export = [this.select.export, this.figure]
     }
 
     /**
      * @brief Assign event functions created interface objects.
      */
     create_callbacks() {
+        // at changing select
+        this.select.select.on('input', () => {
+            this.plot(this.select.select.val())
+        })
 
     }
 
-    plot(figure) {
+    /**
+     * @brief Plot selected plot.
+     */
+    plot() {
+        // choose argument
+        let type, figure
+        arguments.length == 0 ? type = this.select.select.val() : type = arguments[0]
+        // checked type
+        switch (type) {
+            case 'plt_trj_sp':
+                figure = this.data['plots']['trajectory']
+            case 'plt_trj_ph':
+                figure = this.data['plots']['velocity']
+            case 'ani_trj_sp':
+                figure = this.data['animations']['trajectory']
+            case 'ani_trj_ph':
+                figure = this.data['animations']['velocity']
+        }
+
+        // recustom styles
         Object.entries(this.layout).forEach(([key, item]) => {
             figure['layout'][key] = item
         })
         figure['layout']['updatemenus']['bgcolor'] = this.layout['plot_bgcolor']
         figure['layout']['updatemenus']['font'] = this.layout['font']
         figure['layout']['template'] = 'plotly_dark'
+        this.figure.empty()
 
-        Plotly.newPlot(this.id, figure['data'], figure['layout'], {responsive: true}).then(() => {
-            Plotly.addFrames(this.id, figure['frames'])
-        })
+        // visualize
+        if ($(`#${this.parameters.figure.id}`).length > 0) {
+            switch (type) {
+                case 'plt_trj_sp':
+                    Plotly.newPlot(this.parameters.figure.id, figure['data'], figure['layout'], {responsive: true})
+                case 'plt_trj_ph':
+                    Plotly.newPlot(this.parameters.figure.id, figure['data'], figure['layout'], {responsive: true})
+                case 'ani_trj_sp':
+                    Plotly.newPlot(this.parameters.figure.id, figure['data'], figure['layout'], {responsive: true}).then(() => {
+                        Plotly.addFrames(this.id, figure['frames'])
+                    })
+                case 'ani_trj_ph':
+                    Plotly.newPlot(this.parameters.figure.id, figure['data'], figure['layout'], {responsive: true}).then(() => {
+                        Plotly.addFrames(this.id, figure['frames'])
+                    })
+            }
+        }
     }
 }
 
