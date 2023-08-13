@@ -74,6 +74,7 @@ class TaskClassicalGravitation:
             # acquire lock
             mng_lock.acquire()
             solution = mng_dkt[self.sid][self.id]['solution'].copy()
+            solution['t'] = mng_dkt[self.sid][self.id]['problem']['mesh'].copy()
         except:
             # empty record by SID or/and ID
             solution = dict(status = False)
@@ -122,7 +123,7 @@ class TaskClassicalGravitation:
         return vector       
         
     @staticmethod
-    def plot(vector, layout) -> str:
+    def plot(vector: np.ndarray, layout: dict = {}) -> dict:
         """Plot the space/phase trajectory."""
         try:
             # define axis range
@@ -152,7 +153,7 @@ class TaskClassicalGravitation:
             return figure
         
     @staticmethod
-    def animate(vector, n_trace, layout) -> str:
+    def animate(vector: np.ndarray, n_trace: int, layout: dict = {}) -> dict:
         """Animation plot the space/phase trajectory."""
         try:
             n_frame = vector.shape[0]
@@ -195,27 +196,46 @@ class TaskClassicalGravitation:
         finally:
             return figure
         
+    @staticmethod
+    def table(labels: list, values: np.ndarray) -> dict:
+        """Table relation of space/phase trajectory"""
+        try:
+            figure = json.loads(go.Figure(data = [go.Table(header = dict(values = labels), cells = dict(values = values))]).to_json())
+        except:
+            figure = {}
+        finally:
+            return figure
+        
     @classmethod
-    def export(cls, solution, sid, id):
+    def export(cls, solution: dict, sid: str, id: str) -> dict:
         try:
             n_slice = 10
             n_trace = 50
             # extract data
+            t = solution['t']
             r = solution['r']
             dr = solution['dr']            
             # date reduction
+            t = t[::n_slice]
             r = r[::n_slice, :, :]
             dr = dr[::n_slice, :, :]
+            # create labels
+            labels = np.array(['t'] + [f'{x}{i}' for i in np.arange(r.shape[1]) for x in ['x', 'y', 'z'][0:r.shape[2]]]).flatten()
+            # create values
+            values_r = np.concatenate((np.array([t]), r.reshape(np.prod(r.shape[1::]), -1)))
+            values_dr = np.concatenate((np.array([t]), dr.reshape(np.prod(dr.shape[1::]), -1)))
             # build figures
             plots = dict(trajectory = cls.plot(r, dict(title = 'Space trajectory')),
                 velocity = cls.plot(dr, dict(title = 'Phase trajectory')))
             animations = dict(trajectory = cls.animate(r, n_trace, dict(title = 'Space trajectory')),
                 velocity = cls.animate(dr, n_trace, dict(title = 'Phase trajectory')))
+            tables = dict(trajectory = cls.table(labels, values_r), velocity = cls.table(labels, values_dr))
         except:
             plots = {}
             animations = {}
+            tables = {}
         finally:
-            result = dict(sid = sid, id = id, plots = plots, animations = animations)
+            result = dict(sid = sid, id = id, plots = plots, animations = animations, tables = tables)
             return result
 
 class TaskManager():
