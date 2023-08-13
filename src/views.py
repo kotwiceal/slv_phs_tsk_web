@@ -2,10 +2,9 @@
 Return: modified flask instance
 """
 # load app instance
-from src import app, solver
+from src import app
 
 from flask import request
-import numpy, dill
 
 @app.route('/')
 def index():
@@ -25,7 +24,8 @@ def postprocess():
         app.task_manager.mng_lock.acquire()
         plots = app.task_manager.mng_dkt[response['sid']][response['id']]['plots'].copy()
         animations = app.task_manager.mng_dkt[response['sid']][response['id']]['animations'].copy()
+        tables = app.task_manager.mng_dkt[response['sid']][response['id']]['tables'].copy()
     finally:
         # release lock
         app.task_manager.mng_lock.release()
-    return dict(plots = plots, animations = animations)
+    return dict(plots = plots, animations = animations, tables = tables)
