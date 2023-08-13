@@ -1,4 +1,4 @@
-import {Input, Card, Radios, JsonChecker, Select} from './toolkit'
+import {Input, Card, Radios, JsonChecker, Select, Nav} from './toolkit'
 
 /**
  * @brief Container to specify dimension of task.
@@ -720,10 +720,7 @@ class Problem {
     }
 }
 
-/**
- * @brief Result interface.
- */
-class Result {
+class Graph {
     constructor() {
         this.data = {}
         this.parameters = {
@@ -751,14 +748,15 @@ class Result {
      */
     create_elements() {
         // create figure
-        this.figure = $('<div></div>').addClass('container-fluid').attr({id: this.parameters.figure.id})
+        this.figure = $('<div></div>').addClass('container-fluid mt-2').attr({id: this.parameters.figure.id})
 
         // create select
         this.select = new Select(this.parameters.select)
+        this.select.div.addClass('mt-2')
 
         this.export = [this.select.export, this.figure]
     }
-
+    
     /**
      * @brief Assign event functions created interface objects.
      */
@@ -781,46 +779,184 @@ class Result {
         switch (type) {
             case 'plt_trj_sp':
                 figure = this.data['plots']['trajectory']
+                break
             case 'plt_trj_ph':
                 figure = this.data['plots']['velocity']
+                break
             case 'ani_trj_sp':
                 figure = this.data['animations']['trajectory']
+                break
             case 'ani_trj_ph':
                 figure = this.data['animations']['velocity']
+                break
         }
 
         // recustom styles
         Object.entries(this.layout).forEach(([key, item]) => {
             figure['layout'][key] = item
         })
-        figure['layout']['updatemenus']['bgcolor'] = this.layout['plot_bgcolor']
-        figure['layout']['updatemenus']['font'] = this.layout['font']
         figure['layout']['template'] = 'plotly_dark'
+        // clear figure
         this.figure.empty()
 
         // visualize
         if ($(`#${this.parameters.figure.id}`).length > 0) {
-            switch (type) {
-                case 'plt_trj_sp':
-                    Plotly.newPlot(this.parameters.figure.id, figure['data'], figure['layout'], {responsive: true})
-                case 'plt_trj_ph':
-                    Plotly.newPlot(this.parameters.figure.id, figure['data'], figure['layout'], {responsive: true})
-                case 'ani_trj_sp':
-                    Plotly.newPlot(this.parameters.figure.id, figure['data'], figure['layout'], {responsive: true}).then(() => {
-                        Plotly.addFrames(this.id, figure['frames'])
-                    })
-                case 'ani_trj_ph':
-                    Plotly.newPlot(this.parameters.figure.id, figure['data'], figure['layout'], {responsive: true}).then(() => {
-                        Plotly.addFrames(this.id, figure['frames'])
-                    })
+
+            if (figure.hasOwnProperty('frames')) {
+                Plotly.newPlot(this.parameters.figure.id, figure['data'], figure['layout'], {responsive: true}).then(() => {
+                    Plotly.addFrames(this.parameters.figure.id, figure['frames'])
+                })
+            } else {
+                Plotly.newPlot(this.parameters.figure.id, figure['data'], figure['layout'], {responsive: true})
             }
+            // enable autoscale
+            Plotly.relayout(this.parameters.figure.id, {'xaxis.autorange': true, 'yaxis.autorange': true})
         }
     }
 }
 
+class Table {
+    constructor() {
+        this.data = {}
+        this.parameters = {
+            figure: {id: 'task-table-result'},
+            select: {id: 'table-select', label: 'Type', options: [
+                {label: 'Table: space trajectory', id: 'tab_trj_sp', value: 'tab_trj_sp', selected: true},
+                {label: 'Table: phase trajectory', id: 'tab_trj_ph', value: 'tab_trj_ph', selected: false},
+            ]}
+        }
+
+        this.layout = {autosize: true,
+            plot_bgcolor: $('body').css('background-color'), paper_bgcolor: $('body').css('background-color'), 
+            font: {color: $('body').css('color')}}
+
+        // build interface
+        this.create_elements()
+        // create callbacks
+        this.create_callbacks()
+    }
+
+    /**
+     * @brief Assemble interface based jQuery objects.
+     */
+    create_elements() {
+        // create figure
+        this.figure = $('<div></div>').addClass('container-fluid mt-2').attr({id: this.parameters.figure.id})
+
+        // create select
+        this.select = new Select(this.parameters.select)
+        this.select.div.addClass('mt-2')
+
+        this.export = [this.select.export, this.figure]
+    }
+    
+    /**
+     * @brief Assign event functions created interface objects.
+     */
+    create_callbacks() {
+        // at changing select
+        this.select.select.on('input', () => {
+            this.plot(this.select.select.val())
+        })
+
+    }
+
+    /**
+     * @brief Plot selected plot.
+     */
+    plot() {
+        // choose argument
+        let type, figure
+        arguments.length == 0 ? type = this.select.select.val() : type = arguments[0]
+        // checked type
+        switch (type) {
+            case 'tab_trj_sp':
+                figure = this.data['tables']['trajectory']
+                break
+            case 'tab_trj_ph':
+                figure = this.data['tables']['velocity']
+                break
+        }
+        // clear figure
+        this.figure.empty()
+
+        // visualize
+        if ($(`#${this.parameters.figure.id}`).length > 0) {
+            Plotly.newPlot(this.parameters.figure.id, figure['data'], figure['layout'], {responsive: true})
+        }
+    }
+    
+}
+
+/**
+ * @brief Result interface.
+ */
+class Result {
+    constructor() {
+        // build interface
+        this.create_elements()
+        // create callbacks
+        this.create_callbacks()
+    }
+
+    /**
+     * @brief Assemble interface based jQuery objects.
+     */
+    create_elements() {
+        // create graph/table
+        this.graph = new Graph()
+        this.table = new Table()
+
+        // create nav
+        this.nav = new Nav()
+        // append content to nav
+        this.nav.append({id: 'plot', label: 'Plots', content: this.graph.export})
+        this.nav.append({id: 'table', label: 'Tables', content: this.table.export})
+        
+        // create tab trigger object 
+        this.tab_trigger = {}
+        Object.entries(this.nav.labels).forEach(([id, label]) => {
+            this.tab_trigger[id] = new bootstrap.Tab(label)
+        })
+        // specify output jQuery object 
+        this.export = this.nav.export
+    }
+
+    /**
+     * @brief Assign event functions created interface objects.
+     */
+    create_callbacks() {
+        this.nav.labels['plot'].on('click', () => {
+            this.graph.plot()
+        })
+        this.nav.labels['table'].on('click', () => {
+            this.table.plot()
+        })
+    }
+
+    /**
+     * @brief Show specified tab.
+     * @param id string
+     */
+    show(id) {
+        switch (id) {
+            case 'plot':
+                this.graph.plot()
+                break
+            case 'table': 
+                this.table.plot()
+                break
+        }
+        this.tab_trigger[id].show()
+    }
+
+}
+
 class Task {
     constructor() {
+        // create problem
         this.problem = new Problem()
+        // create result
         this.result = new Result()
     }
 }
