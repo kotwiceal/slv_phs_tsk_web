@@ -270,6 +270,38 @@ class ModalEdit {
 }
 
 /**
+ * @brief Task edit dialog based modal.
+ */
+class ModalResult {
+    constructor() {
+        this.modal_parameters = {label: 'Result of task', id: 'modal-result-task'}
+        // build interface
+        this.create_elements()
+    }
+
+    /**
+     * @brief Assemble interface based jQuery objects.
+     */
+    create_elements() {
+        // create modal
+        this.modal = new Modal(this.modal_parameters)
+        // aooly style of large container
+        this.modal.modal_dialog.addClass('modal-xl')
+        this.modal.modal_footer.remove()
+    }
+
+    /**
+     * @brief External event handler.
+     */
+    cancel() {}
+
+    /**
+     * @brief External event handler.
+     */
+    apply() {}
+}
+
+/**
  * @brief Progress pattern.
  */
 class Progress {
@@ -512,10 +544,11 @@ class Workspace {
      */
     create_elements() {
 
-        // create modal creating/editing/deleteing dialogs
+        // create modal creating/editing/deleteing/resulting dialogs
         this.modal_create_task = new ModalCreate()
         this.modal_edit_task = new ModalEdit()
         this.modal_delete_task = new ModalDelete()
+        this.modal_result_task = new ModalResult()
 
         // create option button group
         this.option = new WorkspaceOptions()
@@ -750,8 +783,6 @@ class Workspace {
             let request = {'method': 'POST', 'headers': {'Content-Type': 'application/json'}, 
                 'body': JSON.stringify({id: data['id'], sid: this.socket.socket.id})}
 
-            let figures = {}
-
             await fetch('/postprocess', request).then(response => response.json()).then(json => {
                 // store resuts
                 Object.entries(json).forEach(([key, value]) => {
@@ -808,22 +839,24 @@ class Workspace {
      */
     show_resutl(id) {
         // empty previosly content of modal body
-        this.modal_edit_task.modal.empty_body()
+        this.modal_result_task.modal.empty_body()
         // define target
-        this.modal_edit_task.target = id
+        this.modal_result_task.target = id
 
         // create task
         this.task_obj = new Task()
-        this.task_obj.result.data = this.tasks[id]['result']
+        this.task_obj.result.graph.data = this.tasks[id]['result']
+        this.task_obj.result.table.data = this.tasks[id]['result']
 
         // display problem content
-        this.modal_edit_task.modal.append_body(this.task_obj.result.export)
+        this.modal_result_task.modal.append_body(this.task_obj.result.export)
 
         // open dialog
-        this.modal_edit_task.modal.show()
+        this.modal_result_task.modal.show()
 
+        // load plot object
         setTimeout(() => {
-            this.task_obj.result.plot()
+            this.task_obj.result.show('plot')
         }, 500)
     }
 }

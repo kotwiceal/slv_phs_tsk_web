@@ -570,4 +570,50 @@ class List {
     }
 }
 
-export {Textarea, Select, Modal, Input, List, Card, Radios, JsonChecker}
+/**
+ * @brief Nav tab pattern.
+ */
+class Nav {
+    constructor () {
+        this.labels = {}
+        this.containers = {}
+        // build interface
+        this.create_elements()
+        // create callbacks
+        this.create_callbacks()
+    }
+
+    /**
+     * @brief Assemble interface based jQuery objects.
+     */
+    create_elements() {
+        this.label = $('<div></div>').addClass('nav nav-tabs').attr({role: 'tablist'})
+        this.content = $('<div></div>').addClass('tab-content')
+        this.export = [$('<nav></nav>').append(this.label), this.content]
+    }
+
+    /**
+     * @brief Assign event functions created interface objects.
+     */
+    create_callbacks() {
+
+    }
+
+    /**
+     * @brief Add tab.
+     */
+    append(parameters) {
+        let button = $('<button></button>').addClass('nav-link').attr({'data-bs-toggle': 'tab', 'data-bs-target': `#nav-${parameters.id}`,
+            type: 'button', 'aria-controls': `nav-${parameters.id}`, 'aria-selected': 'false', id: `nav-tab-${parameters.id}`})
+            .append(parameters.label)
+        let content = $('<div></div>').addClass('tab-pane fade').attr({id: `nav-${parameters.id}`, role: 'tabpanel',
+            'aria-labelledby': `nav-tab-${parameters.id}`, tabindex: '0'}).append(parameters.content)
+        this.labels[parameters.id] = button
+        this.containers[parameters.id] = content
+
+        this.label.append(this.labels[parameters.id])
+        this.content.append(this.containers[parameters.id])
+    }
+}
+
+export {Textarea, Select, Modal, Input, List, Card, Radios, JsonChecker, Nav}
