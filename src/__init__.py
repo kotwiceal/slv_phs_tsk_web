@@ -14,12 +14,16 @@ socketio = SocketIO(app, logger = True)
 from src import views
 from src import sockets
 from src import solver
+from src import postgres
 
 def create_app():
     """Launch server."""
     try:
-        # create task manager
+        # create task manager instance
         app.task_manager = solver.TaskManager(4, socketio)
+        # create DBMS instanse
+        app.database = postgres.DBMS()
         socketio.run(app)
     except KeyboardInterrupt:
         app.task_manager.close()
+        app.database.close()

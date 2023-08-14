@@ -39,7 +39,6 @@ class TaskClassicalGravitation:
         [setattr(self, key, kwargs.get(key, None)) for key in kwargs.keys() if key in self._valid_attr]
         self.status = False
     
-    # @worker_info
     def solve(self) -> dict:
         """Solve task."""
         try:
