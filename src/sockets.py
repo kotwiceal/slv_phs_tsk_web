@@ -1,3 +1,5 @@
+"""This module provide socketIO imlementation of server-client communication."""
+
 from src import app, socketio, solver
 from flask import request
 from flask_socketio import emit
