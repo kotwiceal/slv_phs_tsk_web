@@ -19,71 +19,61 @@ class DBMS:
             print(error)
     
     @staticmethod
-    def execute_query(parameters):
-        def decorator(function):
-            def wrapper(*args, **kwargs):
-                try:
-                    connection = psycopg2.connect(**parameters['postgresql'])
-                    with connection:
-                        with connection.cursor() as cursor:
-                            result = function(*args, cursor = cursor, **kwargs)
-                except (Exception, psycopg2.DatabaseError) as error:
-                    result = []
-                    print(error)
-                finally:
-                    if connection is not None:
-                        connection.close()
-                    return result
-            return wrapper
-        return decorator
-          
-    def create(self, table_name, attributes):
-        try:
-            connection = psycopg2.connect(**self._parameters['postgresql'])
-            with connection:
-                with connection.cursor() as cursor:
-                    attributes_parse: str = json.dumps(attributes)
-                    for i in ['{', '}', ':', '"']:
-                        attributes_parse = attributes_parse.replace(i, '')
-                    cursor.execute(f'DROP TABLE IF EXISTS {table_name}')
-                    cursor.execute(f'CREATE TABLE IF NOT EXISTS {table_name} ({attributes_parse})')
-                    
-        except (Exception, psycopg2.DatabaseError) as error:
-            print(error)
-        finally:
-            if connection is not None:
-                connection.close()
-    
-    def insert(self, table_name: str, data: dict) -> None:
-        try:
-            connection = psycopg2.connect(**self._parameters['postgresql'])
-            with connection:
-                with connection.cursor() as cursor:
-                    columns = ','.join(data.keys())
-                    placeholder= ','.join([f'%({key})s' for key in data.keys()])
-                    cursor.execute(f'INSERT INTO {table_name} ({columns}) VALUES ({placeholder})', data)
-        except (Exception, psycopg2.DatabaseError) as error:
-            print(error)
-        finally:
-            if connection is not None:
-                connection.close()
-                
-    def select(self, table_name):
-        try:
-            connection = psycopg2.connect(**self._parameters['postgresql'])
-            with connection:
-                with connection.cursor() as cursor:
-                    cursor.execute(f'SELECT * FROM {table_name}')
-                    result = cursor.fetchall()
-                            
-        except (Exception, psycopg2.DatabaseError) as error:
-            print(error)
-            result = None
-        finally:
-            if connection is not None:
-                connection.close()
-            return result
+    def _execute_query(function):
+        def wrapper(self, **kwargs):
+            try:
+                self.connection = psycopg2.connect(**self._parameters['postgresql'])
+                with self.connection:
+                    with self.connection.cursor() as cursor:
+                        result = function(self, cursor = cursor, **kwargs)
+            except (Exception, psycopg2.DatabaseError) as error:
+                result = None
+                print(error)
+            finally:
+                if self.connection is not None:
+                    self.connection.close()
+                return result
+        return wrapper
 
+    @_execute_query
+    def create(self, **kwargs) -> None:
+        table_name = kwargs['table_name']
+        attributes = kwargs['attributes']
+        cursor = kwargs['cursor']
+        attributes_parse: str = json.dumps(attributes)
+        for i in ['{', '}', ':', '"']:
+            attributes_parse = attributes_parse.replace(i, '')
+        cursor.execute(f'DROP TABLE IF EXISTS {table_name}')
+        cursor.execute(f'CREATE TABLE IF NOT EXISTS {table_name} ({attributes_parse})')
+       
+    @_execute_query
+    def insert(self, **kwargs) -> None:
+        table_name = kwargs['table_name']
+        data = kwargs['data']
+        cursor = kwargs['cursor']
+        columns = ','.join(data.keys())
+        placeholder= ','.join([f'%({key})s' for key in data.keys()])
+        cursor.execute(f'INSERT INTO {table_name} ({columns}) VALUES ({placeholder})', data)
+    
+    @_execute_query
+    def select(self, **kwargs):
+        table_name = kwargs['table_name']
+        cursor = kwargs['cursor']
+        cursor.execute(f'SELECT * FROM {table_name}')
+        result = cursor.fetchall()
+        return result
+
+    def _build_schema(self):
+        # create table to store results of classical gravitation task
+        table_name = 'task_clsgrv'
+        attributes = dict(task_id = 'VARCHAR(255) PRIMARY KEY', t = 'FLOAT[]', r = 'FLOAT[][][]', dr = 'FLOAT[][][]')
+        self.create(table_name = table_name, attributes = attributes)
+        
+        # create table to store worker information
+        table_name = 'worker'
+        attributes = dict(worker_id = 'VARCHAR(255) FOREIGN KEY REFERENCES task_clsgrv(task_id)', name = 'VARCHAR(255)', pid = 'INT', time = 'FLOAT')
+        self.create(table_name = table_name, attributes = attributes)
+        
     def close(self):
         try:
             self.connection.close()

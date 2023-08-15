@@ -239,8 +239,9 @@ class TaskClassicalGravitation:
 
 class TaskManager():
     """Task manager to parallelize solvers"""
-    def __init__(self, pool_size, socketio) -> None:
+    def __init__(self, pool_size, socketio, dbms) -> None:
         self.socketio = socketio
+        self.dbms = dbms
         
         self.manager = multiprocessing.Manager()
         self.mng_dkt = self.manager.dict()
@@ -254,17 +255,17 @@ class TaskManager():
         """Launch pool processing session."""
         print(f'TaskManager: process({tasks})')
         [self.pool.apply_async(task.process, args = (self.mng_dkt, self.mng_lock,), 
-            callback = lambda result, channel = 'process', sid = task.sid, id = task.id: self.callback(channel, sid, id, result)) for task in tasks]   
+            callback = lambda result, channel = 'process', sid = task.sid, id = task.id: self.callback_process(channel, sid, id, result)) for task in tasks]   
     
     def postprocess(self, tasks: list) -> None:
         """Launch pool postprocessing session."""
         print(f'TaskManager: postprocess({tasks})')
         [self.pool.apply_async(task.postprocess, args = (self.mng_dkt, self.mng_lock,), 
-            callback = lambda result, channel = 'postprocess', sid = task.sid, id = task.id: self.callback(channel, sid, id, result)) for task in tasks] 
+            callback = lambda result, channel = 'postprocess', sid = task.sid, id = task.id: self.callback_postprocess(channel, sid, id, result)) for task in tasks] 
         pass
     
-    def callback(self, channel, sid, id, result) -> None:
-        """Callback function at finishing task."""
+    def callback_process(self, channel, sid, id, result) -> None:
+        """Callback function at processing task."""
         try:
             # acquire lock
             self.mng_lock.acquire()
@@ -272,9 +273,33 @@ class TaskManager():
         finally:
             # release lock
             self.mng_lock.release()
-        
         # emit results to client socket
-        self.socketio.emit(channel, dict(id = id, worker = data['worker']), to = sid, namespace = '/solver')
+        self.socketio.emit(channel, dict(id = id, sid = sid, worker = data['worker']), to = sid, namespace = '/solver')
+        # insert data to database
+        self.store(data)
+        
+    def callback_postprocess(self, channel, sid, id, result) -> None:
+        """Callback function at postprocessing task."""
+        try:
+            # acquire lock
+            self.mng_lock.acquire()
+            data = self.mng_dkt[sid][id].copy()
+        finally:
+            # release lock
+            self.mng_lock.release()
+        # emit results to client socket
+        self.socketio.emit(channel, dict(id = id, sid = sid, worker = data['worker']), to = sid, namespace = '/solver')
+        
+    def store(self, data: dict) -> None:
+        """Insert recort to specified task table."""
+        try:
+            match data['task_name']:
+                case 'TaskClassicalGravitation':
+                    record = dict(task_id = data['id'], t = data['problem']['mesh'].tolist(), 
+                        r = data['solution']['r'].tolist(), dr = data['solution']['dr'].tolist())
+                    self.dbms.insert(table_name = 'task_clsgrv', data = record)
+        except Exception as error:
+            print(error)
         
     def registrate_client(self, sid: str) -> None:
         """Create client account in dict manager."""

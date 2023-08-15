@@ -2,7 +2,6 @@
 
 from src import app, socketio, solver
 from flask import request
-from flask_socketio import emit
 
 @socketio.on('connect')
 def on_connect():
@@ -27,7 +26,7 @@ def ns_on_disconnect():
     print(f'client with id {currentSocketId} disconnect in namespace')
     
 @socketio.on('process', namespace = '/solver')
-def ns_on_process(data):
+def ns_on_process(data: list):
     """Start solver to process tasks."""   
     tasks = []  
     for task in data:
@@ -38,7 +37,7 @@ def ns_on_process(data):
     app.task_manager.process(tasks)
     
 @socketio.on('postprocess', namespace = '/solver')
-def ns_on_postprocess(data):
+def ns_on_postprocess(data: list):
     """Start solver to postprocess tasks."""
     tasks = []  
     for task in data:

@@ -700,6 +700,7 @@ class Workspace {
             this.option.checkbox.prop('checked', false)
 
             // send data via socket to server
+            console.log(tasks)
             this.socket.emit('process', tasks)
         }
         

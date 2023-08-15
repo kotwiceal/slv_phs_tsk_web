@@ -10,6 +10,7 @@ class Socket {
     constructor(namespace) {
         this.namespace = namespace
         this.socket = io(this.namespace)
+        console.log(this.socket)
         this.socket.on('connect', () => {this.onconnect()})
     }
 
