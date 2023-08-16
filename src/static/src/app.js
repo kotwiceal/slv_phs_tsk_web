@@ -1,6 +1,6 @@
 import {Textarea, Select, Modal, Input, List} from './toolkit'
 import {Task} from './task_clsgrv'
-
+import {Login} from './auth'
 import {Socket} from './socket'
 
 /**
@@ -154,8 +154,8 @@ class ModalCreate {
                     {label: 'Linear oscillation', id: 'tsk_losc', value: 'tsk_losc', selected: false}
                 ]
             },
-            name: {label: 'Name', id: 'label-name', validation: true},  
-            comment: {label: 'Comment', id: 'label-comment', validation: false},
+            name: {label: 'Name', id: 'label-name', validation: true, type: 'text'},  
+            comment: {label: 'Comment', id: 'label-comment', validation: false, type: 'text'},
         }
 
         // build interface
@@ -868,18 +868,40 @@ class App {
 
         // build interface
         this.create_elements()
+        // assign callback functions
+        this.create_callbacks()
     }
 
     /**
      * @brief Assemble interface based jQuery objects.
      */
     create_elements() {
-        // create container
-        this.div_container = $('<div></div>').addClass('container')
-        // create workspace
-        this.workspace = new Workspace()
-        this.div_container.append(this.workspace.export)
-        this.parent.append(this.workspace.export)
+        this.login = new Login()
+    }
+
+    /**
+     * @brief Assign event functions created interface objects.
+     */
+    create_callbacks() {
+        this.login.modal.show()
+
+        this.login.proceed = (data) => {
+            let request = {'method': 'POST', 'headers': {'Content-Type': 'application/json'}, 
+                'body': data}
+
+            fetch('auth', request).then(response => {
+                console.log(response)
+
+
+                // create workspace
+                this.workspace = new Workspace()
+                this.parent.append(this.workspace.export)
+
+                this.login.modal.hide()
+
+            })
+
+        }
     }
 }
 

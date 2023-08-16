@@ -436,7 +436,7 @@ class Input {
     create_elements() { 
         // create input
         this.input = $('<input>').addClass('form-control is-invalid')
-            .attr({id: this.parameters.id, type: 'text'})
+            .attr({id: this.parameters.id, type: this.parameters.type})
             .on('blur', () => {this.check()}).on('input', () => {this.check()})
         // create input label
         this.label = $('<label></label>').attr({for: this.parameters.id}).append(this.parameters.label)
