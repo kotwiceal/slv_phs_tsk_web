@@ -592,12 +592,12 @@ class Problem {
         // define parameters of input form
         this.parameters = {
             dimension: {radios: [{label: '2D', id: '2d', value: 2}, {label: '3D', id: '3d', value: 3}], value: 2},
-            initial: {inputs: [{id: 'r', label: 'Position', dim: 2, limit: [-50, 50], initial: [1, 1]},
-                {id: 'dr', label: 'Velocity', dim: 2, limit: [-50, 50], initial: [0.1, 0.2]},
-                {id: 'm', label: 'Mass', dim: 1, limit: [0, 10], initial: 1}]},
+            initial: {inputs: [{id: 'r', label: 'Position', dim: 2, limit: [-50, 50], initial: [1, 1], type: 'text'},
+                {id: 'dr', label: 'Velocity', dim: 2, limit: [-50, 50], initial: [0.1, 0.2], type: 'text'},
+                {id: 'm', label: 'Mass', dim: 1, limit: [0, 10], initial: 1}], type: 'text'},
             physics: {inputs: [
-                {id: 'g', label: 'Gravitational constant', dim: 1, limit: [0, 5], initial: 1},
-                {id: 't', label: 'Mesh', dim: 3, limit: [0, 1000000], initial: [0, 1, 10]}
+                {id: 'g', label: 'Gravitational constant', dim: 1, limit: [0, 5], initial: 1, type: 'text'},
+                {id: 't', label: 'Mesh', dim: 3, limit: [0, 1000000], initial: [0, 1, 10], type: 'text'}
             ]},
             preview: {sliders: [{id: 'scale_m', label: 'Mass scale', min: 1, max: 25, step: 1, value: 4},
                 {id: 'scale_dr', label: 'Velocity scale', min: 0.1, max: 5, step: 0.5, value: 2}
