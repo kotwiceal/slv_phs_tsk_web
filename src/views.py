@@ -18,6 +18,7 @@ def route_static_file(path):
 
 @app.route('/postprocess', methods = ['GET', 'POST'])
 def postprocess():
+    """Postprocessing route of specified task."""
     response = request.get_json()
     try:
         # acquire lock
@@ -29,3 +30,11 @@ def postprocess():
         # release lock
         app.task_manager.mng_lock.release()
     return dict(plots = plots, animations = animations, tables = tables)
+
+@app.route('/authorize', methods = ['GET', 'POST'])
+def auth():
+    """User authorization/registration."""
+    data = request.get_json()
+    print(data)
+    response = dict(answer = dict(message = 'Authorize', state = True), tasks = [])
+    return response

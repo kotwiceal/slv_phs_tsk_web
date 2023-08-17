@@ -362,7 +362,11 @@ class Modal {
         this.modal.append(this.modal_dialog)
 
         // create modal object
-        this.modal_obj = new bootstrap.Modal(this.modal)
+        if (this.parameters.hasOwnProperty('options')) {
+            this.modal_obj = new bootstrap.Modal(this.modal, this.parameters.options)
+        } else {
+            this.modal_obj = new bootstrap.Modal(this.modal)
+        }
 
         // specify output jQuery object 
         this.export = this.modal
@@ -576,6 +580,7 @@ class List {
 class Nav {
     constructor () {
         this.labels = {}
+        this.contents = {}
         this.containers = {}
         // build interface
         this.create_elements()
@@ -606,13 +611,25 @@ class Nav {
         let button = $('<button></button>').addClass('nav-link').attr({'data-bs-toggle': 'tab', 'data-bs-target': `#nav-${parameters.id}`,
             type: 'button', 'aria-controls': `nav-${parameters.id}`, 'aria-selected': 'false', id: `nav-tab-${parameters.id}`})
             .append(parameters.label)
-        let content = $('<div></div>').addClass('tab-pane fade').attr({id: `nav-${parameters.id}`, role: 'tabpanel',
-            'aria-labelledby': `nav-tab-${parameters.id}`, tabindex: '0'}).append(parameters.content)
+
+        // append content
         this.labels[parameters.id] = button
-        this.containers[parameters.id] = content
+        this.containers[parameters.id] = $('<div></div>').addClass('tab-pane fade').attr({id: `nav-${parameters.id}`, role: 'tabpanel',
+            'aria-labelledby': `nav-tab-${parameters.id}`, tabindex: '0'})
+        this.containers[parameters.id].append(parameters.content)
 
         this.label.append(this.labels[parameters.id])
         this.content.append(this.containers[parameters.id])
+    }
+
+    /**
+     * @brief Edit content of nav tab by specified id.
+     * @param id string
+     * @param content jQuery objet
+     */
+    edit(id, content) {
+        this.containers[id].empty()
+        this.containers[id].append(content)
     }
 }
 
