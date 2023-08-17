@@ -465,7 +465,7 @@ class Toast {
     }
 
     show(data) {
-        this.toasts[data['id']] = $('<div></div>').addClass('toast').attr({role: 'alert', 'ria-live': 'assertive', 'aria-atomic': 'true'}).append(
+        this.toasts[data['id']] = $('<div></div>').addClass('toast').attr({role: 'alert', 'aria-live': 'assertive', 'aria-atomic': 'true'}).append(
             $('<div></div>').addClass('toast-header').append(
                 $('<strong></strong>').addClass('me-auto').append('Task manager'),
                 $('<small></small>').addClass('text-body-secondary').append(new Date().toLocaleString()),
@@ -504,39 +504,13 @@ class Workspace {
         this.create_callbacks()
 
         // bypass
-        this.bypass()
+        let data = data = { "type": { "id": "tsk_cgrv", "label": "Classical gravitation" }, 
+            "name": "Task 1", "comment": "testing element alignment", "date": "09.08.2023, 22:52:50", 
+            "id": "ee0a0f7f60b63b8ff71487e", "checked": false}
+        this.append()
 
         // initiate state
         this.check()
-    }
-
-    bypass() {
-        let data = {
-            "type": {
-                "id": "tsk_cgrv",
-                "label": "Classical gravitation"
-            },
-            "name": "Task 1",
-            "comment": "testing element alignment",
-            "date": "09.08.2023, 22:52:50",
-            "id": "ee0a0f7f60b63b8ff71487e43ebda9fc20184aef0dea",
-            "checked": false
-        }
-        
-        // define task problem parameters
-        this.tasks[data.id] = Object.assign({}, data, {problem: this.problem_default, result: {}})
-
-        // define initial state of option checkbox
-        this.option.checkbox.prop('disabled', false)
-
-        // define checkbox state accordint to checkobx of ooption panel
-        data['checked'] = this.option.checkbox.prop('checked')
-
-        // create task item
-        this.list.append(new Item(data))
-
-        // define state of item according to correcness task problem initialization
-        this.list.items[data.id].checkbox.prop('disabled', true)
     }
 
     /**
@@ -618,22 +592,13 @@ class Workspace {
         this.modal_create_task.dialog.proceed = (data) => {
             // TODO separation task types
 
-            // define task problem parameters
-            this.tasks[data.id] = Object.assign({}, data, {problem: this.problem_default, result: {}})
+            // create item
+            this.append(data)
 
             // define initial state of option checkbox
             if (Object.keys(this.tasks).length === 0 && this.tasks.constructor === Object) { 
                 this.option.checkbox.prop('disabled', true)
             }
-
-            // define checkbox state accorint to checkobx of ooption panel
-            data['checked'] = this.option.checkbox.prop('checked')
-
-            // create task item
-            this.list.append(new Item(data))
-
-            // define state of item according to correcness task problem initialization
-            this.list.items[data.id].checkbox.prop('disabled', true)
 
             // clear input form of dialog
             this.modal_create_task.dialog.empty()
@@ -797,6 +762,30 @@ class Workspace {
     }
 
     /**
+     * @brief Create task item
+     * @param data object
+     * @example data = { "type": { "id": "tsk_cgrv", "label": "Classical gravitation" }, 
+     * "name": "Task 1", "comment": "testing element alignment", 
+     * "date": "09.08.2023, 22:52:50", "id": "ee0a0f7f60b63b8ff71487e, "checked": false }
+     */
+    append(data) {       
+        // define task problem parameters
+        this.tasks[data.id] = Object.assign({}, data, {problem: this.problem_default, result: {}})
+
+        // define initial state of option checkbox
+        this.option.checkbox.prop('disabled', false)
+
+        // define checkbox state accordint to checkobx of ooption panel
+        data['checked'] = this.option.checkbox.prop('checked')
+
+        // create task item
+        this.list.append(new Item(data))
+
+        // define state of item according to correcness task problem initialization
+        this.list.items[data.id].checkbox.prop('disabled', true)
+    }
+
+    /**
      * @brief Check all item state.
      */
     check() {
@@ -870,12 +859,16 @@ class App {
         this.create_elements()
         // assign callback functions
         this.create_callbacks()
+
+        // show sign in dialog
+        this.login.show('sign_in')
     }
 
     /**
      * @brief Assemble interface based jQuery objects.
      */
     create_elements() {
+        // create login modal
         this.login = new Login()
     }
 
@@ -886,21 +879,17 @@ class App {
         this.login.modal.show()
 
         this.login.proceed = (data) => {
-            let request = {'method': 'POST', 'headers': {'Content-Type': 'application/json'}, 
-                'body': data}
+            // create workspace
+            this.workspace = new Workspace()
+            this.parent.append(this.workspace.export)
+            this.login.modal.hide()
 
-            fetch('auth', request).then(response => {
-                console.log(response)
-
-
-                // create workspace
-                this.workspace = new Workspace()
-                this.parent.append(this.workspace.export)
-
-                this.login.modal.hide()
-
-            })
-
+            // load database stored user task
+            if (data.hasOwnProperty('tasks')) {
+                data['tasks'].forEach(task => {
+                    this.worker.append(task)
+                })
+            }
         }
     }
 }
