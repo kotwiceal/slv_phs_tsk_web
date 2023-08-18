@@ -275,12 +275,14 @@ class Login {
             await fetch('/authorize', request).then(response => response.json()).then(json => {
                 console.log(json)
                 
-                this.toast.show(json['answer']['message'], 
-                        json['answer']['state'] ? 'text-bg-primary' : 'text-bg-danger')
+                this.proceed(json)
 
-                if (json['answer']['state']) {
-                    this.proceed(json)
-                }
+                // this.toast.show(json['answer']['message'], 
+                //         json['answer']['state'] ? 'text-bg-primary' : 'text-bg-danger')
+
+                // if (json['answer']['state']) {
+                //     this.proceed(json)
+                // }
 
             }).catch(error => {
                 this.toast.show(`Error: ${error}`, 'text-bg-danger')
@@ -316,12 +318,12 @@ class Login {
         this.nav.edit(id, this.sign.export)
 
         // set manual criteria handler
-        this.sign.inputs['user'].criteria = this.criteria
-        this.sign.inputs['password'].criteria = this.criteria
+        this.sign.inputs['user'].criteria = (value) => {return this.criteria(value, 5)}
+        this.sign.inputs['password'].criteria = (value) => {return this.criteria(value, 5)}
 
         if (this.sign.inputs.hasOwnProperty('password_confirm'))  {
             this.sign.inputs['password_confirm'].criteria = (value) => {
-                let result = this.criteria(value)
+                let result = this.criteria(value, 5)
                 if (result['state']) {
                     if (value != this.sign.inputs['password'].data()) {
                         result = {state: false, message: 'Passwords must coincide.'}
@@ -342,8 +344,7 @@ class Login {
      * @return object
      * @example {state: false, message: "Field must not be empty."}
      */
-    criteria(value) {
-        let length = 5
+    criteria(value, length) {
         let result = {}
         if (value == '') {
             result = {state: false, message: "Field must not be empty."}

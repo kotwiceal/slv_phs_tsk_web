@@ -93,6 +93,11 @@ class WorkspaceOptions {
      * @brief Assemble interface based jQuery objects.
      */
     create_elements() {
+        // create user button sign out
+        this.button_sign_out = $('<button></button>').addClass('btn btn-primary').append(
+            $('<i></i>').addClass('bi-person-down').css({'font-size': this.font_size}))
+            .on('click', () => {this.sign_out()}).attr({type: 'button', 'data-bs-placement': 'top', 
+            'data-bs-title': 'Sign Out', 'data-bs-custom-class': 'custom-tooltip'})
         // create checkbox selector
         this.checkbox = $('<input>').addClass('btn-check').prop('disabled', true)
             .attr({type: 'checkbox', id: 'btncheck', autocomplete: 'off', 'data-bs-placement': 'top', 
@@ -105,25 +110,37 @@ class WorkspaceOptions {
         this.button_process = $('<button></button>').addClass('btn btn-primary').append($('<i></i>').addClass('bi-cpu').css({'font-size': this.font_size}))
             .attr({type: 'button', 'data-bs-placement': 'top', 
             'data-bs-title': 'Process', 'data-bs-custom-class': 'custom-tooltip'}).prop('disabled', true).on('click', () => {this.process()})
+        
+        // create card containers
+        this.card_body = $('<div></div>').addClass('card-body').append(
+            $('<div></div>').addClass('btn-group w-100').attr({role: 'group'}).append(
+                this.button_sign_out,
+                this.checkbox,
+                $('<label></label>').addClass('btn btn-outline-primary').append(
+                    $('<i></i>').addClass('bi-ui-checks').css({'font-size': this.font_size})).attr({for: 'btncheck'}),
+                this.button_add,
+                this.button_process
+            )
+        )
+        this.card_footer = $('<div></div>').addClass('card-footer')
+
         // specify output jQuery object 
         this.export = $('<div></div>').addClass('card mb-4').append(
-            $('<div></div>').addClass('card-body').append(
-                $('<div></div>').addClass('btn-group w-100').attr({role: 'group'}).append(
-                    this.checkbox,
-                    $('<label></label>').addClass('btn btn-outline-primary').append(
-                        $('<i></i>').addClass('bi-ui-checks').css({'font-size': this.font_size})).attr({for: 'btncheck'}),
-                    this.button_add,
-                    this.button_process
-                )
-            )
+            this.card_body,
+            this.card_footer
         )
 
         // define css class for appearance of tooltip
         $('<style>').prop('type', 'text/css').html(".custom-tooltip {--bs-tooltip-bg: var(--bd-violet-bg);--bs-tooltip-color: var(--bs-white);}").appendTo("head");               
 
         // create tooltip
-        this.tooltip = [this.checkbox, this.button_add, this.button_process].map(element => new bootstrap.Tooltip(element))
+        this.tooltip = [this.button_sign_out, this.checkbox, this.button_add, this.button_process].map(element => new bootstrap.Tooltip(element))
     }
+
+    /**
+     * @brief External event function.
+     */
+    sign_out() {}
 
     /**
      * @brief External event function.
@@ -396,10 +413,10 @@ class Item {
                     ),
                     $('<div></div>').addClass('col mt-3 mb-3').append(
                         $('<div></div>').addClass('d-flex justify-content-between').append(
-                            $('<h5></h5>').addClass('mb-1').append(this.parameters.name),
-                            $('<small></small>').append('Created: ' + this.parameters.date),                                        
+                            $('<h5></h5>').addClass('mb-1').attr({id: 'item-name'}).append(this.parameters.name),
+                            $('<small></small>').attr({id: 'item-date'}).append('Created: ' + this.parameters.date),                                        
                         ),
-                        $('<p></p>').addClass('mb-1').append(`${this.parameters.type.label}`),
+                        $('<p></p>').addClass('mb-1').attr({id: 'item-type'}).append(`${this.parameters.type.label}`),
                         this.identity.export,
                         this.comment.export,
                         this.progress.export,
@@ -482,6 +499,65 @@ class Toast {
 }
 
 /**
+ * @brief Filter bar pattern.
+ */
+class FilterBar {
+    constructor() {
+        this.parameters = {
+            input: {label: 'Search', id: 'input-search', validation: false, type: 'text'},
+            select: {id: 'select-search', label: 'Category', options: [
+                    {label: 'Name', id: 'sel_label', value: 'sel_label', selected: false},
+                    {label: 'Type', id: 'sel_type', value: 'sel_type', selected: false},
+                    {label: 'Date', id: 'sel_date', value: 'sel_date', selected: false}
+                ]
+            }
+        }
+        this.font_size = '15px'
+        // build interface
+        this.create_elements()
+       // assign callback functions
+        this.create_callbacks()
+    }
+    
+    /**
+     * @brief Assemble interface based jQuery objects.
+     */
+    create_elements() {
+        // create input
+        this.input = new Input(this.parameters.input)
+        this.input.input.removeClass('is-invalid is-valid')
+        // creade dropdown
+        this.select = new Select(this.parameters.select)
+        // specify output jQuery object 
+        this.export = $('<div></div>').addClass('input-group').append(
+            [
+                $('<span></span>').addClass('input-group-text').append(
+                    $('<i></i>').addClass('bi-search').css({'font-size': this.font_size}),
+                ),
+                this.input.export,
+                this.select.export
+            ]
+        )
+
+    }
+
+    /**
+     * @brief Assign event functions created interface objects.
+     */
+    create_callbacks() {
+        // create filter handler
+        this.input.input.on('keyup', () => {
+            this.filter_func(this.input.data())
+        })
+    }
+
+    /**
+     * @brief Filter function.
+     */
+    filter_func(value) {}
+}
+
+/**
  * @brief Workspace tab interface
  */
 class Workspace {
@@ -504,10 +580,10 @@ class Workspace {
         this.create_callbacks()
 
         // bypass
-        let data = data = { "type": { "id": "tsk_cgrv", "label": "Classical gravitation" }, 
+        let data = { "type": { "id": "tsk_cgrv", "label": "Classical gravitation" }, 
             "name": "Task 1", "comment": "testing element alignment", "date": "09.08.2023, 22:52:50", 
             "id": "ee0a0f7f60b63b8ff71487e", "checked": false}
-        this.append()
+        // this.append(data)
 
         // initiate state
         this.check()
@@ -526,7 +602,13 @@ class Workspace {
 
         // create option button group
         this.option = new WorkspaceOptions()
-        
+
+        // create filter bar
+        this.filter = new FilterBar()
+        this.filter.filter_func = (value) => {this.filter_func(value)}
+        this.option.export.append(this.filter.export)
+        this.option.card_footer.append(this.filter.export)
+
         // create task list
         this.list = new List()
 
@@ -786,6 +868,14 @@ class Workspace {
     }
 
     /**
+     * @brief Erase workspace.
+     */
+    empty() {
+        this.list.empty()
+        delete this.task_obj
+    }
+
+    /**
      * @brief Check all item state.
      */
     check() {
@@ -849,6 +939,16 @@ class Workspace {
             this.task_obj.result.show('plot')
         }, 500)
     }
+
+    /**
+     * @brief Filter function to filter bar.
+     */
+    filter_func(value) {
+        this.list.list_group.filter((index, element) => {
+            // TODO
+        })
+    }
+
 }
 
 class App {
@@ -861,6 +961,7 @@ class App {
         this.create_callbacks()
 
         // show sign in dialog
+        this.login.modal.show()
         this.login.show('sign_in')
     }
 
@@ -870,24 +971,40 @@ class App {
     create_elements() {
         // create login modal
         this.login = new Login()
+
+        // create workspace
+        this.workspace = new Workspace()
+        this.workspace.export.hide()
+        // append to parent element
+        this.parent.append(this.workspace.export)
     }
 
     /**
      * @brief Assign event functions created interface objects.
      */
     create_callbacks() {
-        this.login.modal.show()
+        // handler at user sign out
+        this.workspace.option.sign_out = () => {
+            // erase and hide workspace
+            this.workspace.empty()
+            this.workspace.export.hide()
+
+            // show sign in dialog
+            this.login.modal.show()
+            this.login.show('sign_in')
+        }
 
         this.login.proceed = (data) => {
-            // create workspace
-            this.workspace = new Workspace()
-            this.parent.append(this.workspace.export)
+            // erase workspace items 
+            this.workspace.empty()
+            this.workspace.export.show()
+
             this.login.modal.hide()
 
             // load database stored user task
             if (data.hasOwnProperty('tasks')) {
                 data['tasks'].forEach(task => {
-                    this.worker.append(task)
+                    this.workspace.append(task)
                 })
             }
         }
