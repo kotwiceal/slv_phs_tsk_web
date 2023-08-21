@@ -5,5 +5,5 @@ __pycache__/
 src/static/node_modules
 src/static/package-lock.json
 src/static/dist
-src/database_config.json
+src/config.json
 .pytest_cache/

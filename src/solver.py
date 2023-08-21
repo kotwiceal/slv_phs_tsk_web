@@ -3,7 +3,8 @@ import multiprocessing, time, json
 import numpy as np
 from scipy.integrate import odeint
 import plotly.graph_objects as go
-from flask_socketio import join_room, leave_room, send, emit, Namespace
+from src import app, db
+from src import database
 
 class NumpyEncoder(json.JSONEncoder):
     """Class to serialize ndarray object."""
@@ -239,9 +240,8 @@ class TaskClassicalGravitation:
 
 class TaskManager():
     """Task manager to parallelize solvers"""
-    def __init__(self, pool_size, socketio, dbms) -> None:
+    def __init__(self, pool_size, socketio) -> None:
         self.socketio = socketio
-        self.dbms = dbms
         
         self.manager = multiprocessing.Manager()
         self.mng_dkt = self.manager.dict()
@@ -294,10 +294,12 @@ class TaskManager():
         """Insert recort to specified task table."""
         try:
             match data['task_name']:
-                case 'TaskClassicalGravitation':
-                    record = dict(task_id = data['id'], t = data['problem']['mesh'].tolist(), 
+                case 'TaskClassicalGravitation':                    
+                    task = database.Task_clsgrv(task_id = data['id'], t = data['problem']['mesh'].tolist(), 
                         r = data['solution']['r'].tolist(), dr = data['solution']['dr'].tolist())
-                    self.dbms.insert(table_name = 'task_clsgrv', data = record)
+                    with app.app_context():
+                        db.session.add(task)
+                        db.session.commit()
         except Exception as error:
             print(error)
         

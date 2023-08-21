@@ -86,7 +86,8 @@ class Sign {
                 data[key] = input.data()
             })
             data['date'] = new Date().toLocaleString()
-            result[this.parameters.id] = data
+            data['action'] = this.parameters.id
+            result = data
             return result
         }
     }
@@ -275,14 +276,12 @@ class Login {
             await fetch('/authorize', request).then(response => response.json()).then(json => {
                 console.log(json)
                 
-                this.proceed(json)
+                this.toast.show(json['answer']['message'], 
+                    json['answer']['state'] ? 'text-bg-primary' : 'text-bg-danger')
 
-                // this.toast.show(json['answer']['message'], 
-                //         json['answer']['state'] ? 'text-bg-primary' : 'text-bg-danger')
-
-                // if (json['answer']['state']) {
-                //     this.proceed(json)
-                // }
+                if (json['answer']['state']) {
+                    this.proceed(json)
+                }
 
             }).catch(error => {
                 this.toast.show(`Error: ${error}`, 'text-bg-danger')

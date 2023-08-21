@@ -1,4 +1,4 @@
-"""This module provide socketIO imlementation of server-client communication."""
+"""This module provides socketIO imlementation of server-client communication."""
 
 from src import app, socketio, solver
 from flask import request
