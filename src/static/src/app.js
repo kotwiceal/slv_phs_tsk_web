@@ -960,9 +960,25 @@ class App {
         // assign callback functions
         this.create_callbacks()
 
-        // show sign in dialog
-        this.login.modal.show()
-        this.login.show('sign_in')
+        fetch('/signin').then(response => response.json()).then(data => {
+            console.log(data)
+            if (data['authorized']) {
+                // erase workspace items 
+                this.workspace.empty()
+                this.workspace.export.show()
+
+                // load database stored user task
+                if (data.hasOwnProperty('tasks')) {
+                    data['tasks'].forEach(task => {
+                        this.workspace.append(task)
+                    })
+                }
+            } else {
+                // show sign in dialog
+                this.login.modal.show()
+                this.login.show('sign_in')
+            }
+        })
     }
 
     /**
@@ -988,6 +1004,10 @@ class App {
             // erase and hide workspace
             this.workspace.empty()
             this.workspace.export.hide()
+
+            fetch('/singout').then(response => {
+                console.log(response)
+            })
 
             // show sign in dialog
             this.login.modal.show()

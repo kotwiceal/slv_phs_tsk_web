@@ -86,7 +86,7 @@ class Sign {
                 data[key] = input.data()
             })
             data['date'] = new Date().toLocaleString()
-            data['action'] = this.parameters.id
+            data['url'] = this.parameters.url
             result = data
             return result
         }
@@ -137,6 +137,11 @@ class Toast {
         this.export = $('<div></div>').addClass('toast-container position-static')
     }
 
+    /**
+     * @brief Show content by means toast.
+     * @param {*} message string
+     * @param {*} style string
+     */
     show(message, style) {
         this.toast = $('<div></div>').addClass('toast').addClass(style)
             .attr({role: 'alert', 'aria-live': 'assertive', 'aria-atomic': 'true'}).append(
@@ -148,6 +153,13 @@ class Toast {
         this.toas_obj = new  bootstrap.Toast(this.toast)
         this.toas_obj.show()
     }
+
+    /**
+     * @brief Hide current toast.
+     */
+    hide() {
+        this.toas_obj.hide()
+    }
 }
 
 /**
@@ -158,12 +170,12 @@ class Login {
         this.modal_parameters = {label: 'Authorization', id: 'modal-auth', options: {backdrop: 'static', keyboard: false}}
 
         this.sign_parameters = {
-            sign_in: {id: 'sign_in', label: 'Sign In', inputs: {
+            sign_in: {id: 'sign_in', label: 'Sign In', url: '/signin',inputs: {
                     user: {label: 'User', id: 'label-user', validation: true, type: 'text'},  
                     password: {label: 'Password', id: 'label-password', validation: true, type: 'password'}
                 }
             },
-            sign_up: {id: 'sign_up', label: 'Sign Up',inputs: {
+            sign_up: {id: 'sign_up', label: 'Sign Up', url: '/signup', inputs: {
                     user: {label: 'User', id: 'label-user', validation: true, type: 'text'},  
                     password: {label: 'Password', id: 'label-password', validation: true, type: 'password'},
                     password_confirm: {label: 'Confirm password', id: 'label-password-confirm', validation: true, type: 'password'}
@@ -273,20 +285,17 @@ class Login {
             let request = {'method': 'POST', 'headers': {'Content-Type': 'application/json'}, 'body': JSON.stringify(data)}
             console.log(request)
             // request
-            await fetch('/authorize', request).then(response => response.json()).then(json => {
-                console.log(json)
-                
-                this.toast.show(json['answer']['message'], 
-                    json['answer']['state'] ? 'text-bg-primary' : 'text-bg-danger')
-
-                if (json['answer']['state']) {
-                    this.proceed(json)
+            await fetch(data['url'], request).then(response => response.json()).then(json => {
+                this.toast.show(json['message'], json['state'] ? 'text-bg-primary' : 'text-bg-danger')
+                if (json['state']) {
+                    setTimeout(() => {
+                        this.toast.hide()
+                        this.proceed(json)
+                    }, 500)
                 }
-
             }).catch(error => {
                 this.toast.show(`Error: ${error}`, 'text-bg-danger')
             })
-
             // rollback appearance of interface
             this.button_confirm.empty()
             this.button_confirm.append('Confirm')

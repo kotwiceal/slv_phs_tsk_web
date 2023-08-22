@@ -1,7 +1,7 @@
 """Pre-initialization module."""
 
 import pytest
-from src import app, db, socketio, init_app, solver, database
+from src import app, db, models, socketio, init_app, solver
 from flask_socketio import SocketIOTestClient
 import numpy as np
 

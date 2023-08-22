@@ -4,7 +4,7 @@ import numpy as np
 from scipy.integrate import odeint
 import plotly.graph_objects as go
 from src import app, db
-from src import database
+from src import models
 
 class NumpyEncoder(json.JSONEncoder):
     """Class to serialize ndarray object."""
@@ -295,7 +295,7 @@ class TaskManager():
         try:
             match data['task_name']:
                 case 'TaskClassicalGravitation':                    
-                    task = database.Task_clsgrv(task_id = data['id'], t = data['problem']['mesh'].tolist(), 
+                    task = models.Task_clsgrv(task_id = data['id'], t = data['problem']['mesh'].tolist(), 
                         r = data['solution']['r'].tolist(), dr = data['solution']['dr'].tolist())
                     with app.app_context():
                         db.session.add(task)
