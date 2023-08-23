@@ -17,11 +17,11 @@ class User(UserMixin, db.Model):
     def __repr__(self):
         return f'<user {self.login}>'
 
-class Task_clsgrv(db.Model):
-    """Table to store classical gravitation task result."""
-    __tabname__ = 'task_clsgrv'
+class Task(db.Model):
+    """Table to store task sessions."""
+    __tabname__ = 'task_session'
     task_id = db.Column(db.String, primary_key = True)
-    t = db.Column(db.ARRAY(db.Float))
-    r = db.Column(db.ARRAY(db.Float))
-    dr = db.Column(db.ARRAY(db.Float))
-        
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    
+    def __repr__(self):
+        return f'<{self.__tabname__} {self.task_id}>'

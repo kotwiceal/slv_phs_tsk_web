@@ -568,8 +568,11 @@ class Workspace {
         this.task_obj = {}
         // define problem default parameters
         this.problem_default = {dimension: 2, initial: [{r: [-2, 0], dr: [0, 0], m: 1}, {r: [2, 2], dr: [0, 0], m: 1}, 
-            {r: [1, -2], dr: [0, 0], m: 2}], 
+            {r: [1, -2], dr: [0, 0], m: 2}, {r: [5, -3], dr: [0, 0], m: 2}], 
             physics: {g: 1, t: [0, 100, 10000]}}
+        // this.problem_default = {dimension: 3, initial: [{r: [-2, 0, 0], dr: [0, 0, 0], m: 1}, {r: [2, 2, -1], dr: [0, 0, 0], m: 1}, 
+        // {r: [1, -2, 2], dr: [0, 0, 0], m: 2}, {r: [2, -2, -2], dr: [0, 0, 0], m: 2}], 
+        // physics: {g: 1, t: [0, 100, 10000]}}
 
         // create socket
         this.socket = new Socket('/solver')
@@ -583,7 +586,7 @@ class Workspace {
         let data = { "type": { "id": "tsk_cgrv", "label": "Classical gravitation" }, 
             "name": "Task 1", "comment": "testing element alignment", "date": "09.08.2023, 22:52:50", 
             "id": "ee0a0f7f60b63b8ff71487e", "checked": false}
-        // this.append(data)
+        this.append(data)
 
         // initiate state
         this.check()
@@ -833,6 +836,7 @@ class Workspace {
 
             await fetch('/postprocess', request).then(response => response.json()).then(json => {
                 // store resuts
+                console.log(json)
                 Object.entries(json).forEach(([key, value]) => {
                     this.tasks[data['id']]['result'][key] = value
                 })

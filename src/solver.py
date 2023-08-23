@@ -6,6 +6,22 @@ import plotly.graph_objects as go
 from src import app, db
 from src import models
 
+from sqlalchemy import create_engine, MetaData, Table, Column, Integer, String, Float, ARRAY
+from sqlalchemy.orm import declarative_base, sessionmaker
+
+Base = declarative_base()
+
+class ModelTaskClassicalGravitation(Base):
+    """Table to store classical gravitation task results."""
+    __tablename__ = 'task_clsgrv'
+    task_id = Column(String, primary_key = True)
+    t = Column(ARRAY(Float))
+    r = Column(ARRAY(Float))
+    dr = Column(ARRAY(Float))
+        
+    def __repr__(self):
+        return f'<{self.__tablename__} {self.task_id}>'
+
 class NumpyEncoder(json.JSONEncoder):
     """Class to serialize ndarray object."""
     def default(self, obj):
@@ -39,7 +55,11 @@ class TaskClassicalGravitation:
     def __init__(self, **kwargs) -> None:
         [setattr(self, key, kwargs.get(key, None)) for key in kwargs.keys() if key in self._valid_attr]
         self.status = False
-    
+        
+        self.SQLALCHEMY_DATABASE_URI = "postgresql+psycopg2://postgres:testing@localhost/postgres"
+        engine = create_engine(self.SQLALCHEMY_DATABASE_URI)
+        Base.metadata.create_all(engine)
+
     def solve(self) -> dict:
         """Solve task."""
         try:
@@ -61,6 +81,8 @@ class TaskClassicalGravitation:
             result = dict(task_name = self.__class__.__name__, sid = self.sid, id = self.id,
                 solution = dict(r = self.r, dr = self.dr, status = self.status), 
                 problem = self.problem)
+            # store results into database
+            self.store(result)
         return result
     
     def process(self, mng_dkt, mng_lock):
@@ -72,15 +94,24 @@ class TaskClassicalGravitation:
         # extract data
         try:
             # acquire lock
-            mng_lock.acquire()
-            solution = mng_dkt[self.sid][self.id]['solution'].copy()
-            solution['t'] = mng_dkt[self.sid][self.id]['problem']['mesh'].copy()
+            # mng_lock.acquire()
+            # solution = mng_dkt[self.sid][self.id]['solution'].copy()
+            # solution['t'] = mng_dkt[self.sid][self.id]['problem']['mesh'].copy()
+  
+            # extract record from database
+            engine = create_engine(self.SQLALCHEMY_DATABASE_URI)
+            Session = sessionmaker(engine)
+            with Session() as session:
+                task = session.query(ModelTaskClassicalGravitation).filter_by(task_id = self.id).all()
+                solution = dict(t = np.array(task[0].t), r = np.array(task[0].r), dr = np.array(task[0].dr), status = True)
+                session.commit()
         except:
             # empty record by SID or/and ID
             solution = dict(status = False)
         finally:
+            pass
             # release lock
-            mng_lock.release()
+            # mng_lock.release()
         if solution['status']:
             worker_watcher(mng_dkt, mng_lock)(self.export)(solution, self.sid, self.id)
 
@@ -122,6 +153,22 @@ class TaskClassicalGravitation:
         vector[1::2] = ddr.flatten()
         return vector       
         
+    def store(self, data: dict) -> None:
+        """Insert processed task result to specific table."""
+        try:
+            # create task model
+            task = ModelTaskClassicalGravitation(task_id = data['id'], t = data['problem']['mesh'].tolist(), 
+                r = data['solution']['r'].tolist(), dr = data['solution']['dr'].tolist())
+            # store record
+            engine = create_engine(self.SQLALCHEMY_DATABASE_URI)
+            Session = sessionmaker(engine)
+            with Session() as session:
+                query = session.query(ModelTaskClassicalGravitation).filter_by(task_id = data['id']).first()                
+                session.add(task) if query is None else session.update(task)
+                session.commit()
+        except Exception as error:
+            print(error)
+        
     @staticmethod
     def plot(vector: np.ndarray, layout: dict = {}) -> dict:
         """Plot the space/phase trajectory."""
@@ -140,14 +187,15 @@ class TaskClassicalGravitation:
                 case 3:                  
                     data = [go.Scatter3d(x = vector[:, i, 0], y = vector[:, i, 1], z = vector[:, i, 2], mode = 'lines', name = str(i + 1))
                         for i in index]
-                    layout_axis = dict(xaxis = dict(range = [vector_min[0], vector_max[0]], autorange = False),
-                        yaxis = dict(range = [vector_min[1], vector_min[1]], scaleanchor = 'x', scaleratio = 1, autorange = False),
-                        zaxis = dict(range = [vector_min[2], vector_min[2]], scaleanchor = 'x', scaleratio = 1, autorange = False))   
+                    layout_axis = dict(scene = dict(xaxis = dict(range = [vector_min[0], vector_max[0]], autorange = False),
+                        yaxis = dict(range = [vector_min[1], vector_min[1]], autorange = False),
+                        zaxis = dict(range = [vector_min[2], vector_min[2]], autorange = False), aspectmode = 'cube'))
             # create layout
             layout = dict(hovermode = 'closest') | layout_axis | layout
             # create figure
             figure = json.loads(go.Figure(data = data, layout = layout).to_json())
-        except Exception:
+        except Exception as error:
+            print(error)
             figure = {}
         finally:
             return figure
@@ -180,9 +228,9 @@ class TaskClassicalGravitation:
                     frames = [go.Frame(data = [go.Scatter3d(x = vector[nf-n_trace:nf, i, 0], y = vector[nf-n_trace:nf, i, 1], z = vector[nf-n_trace:nf, i, 2], mode = 'lines') 
                             if nf > n_trace else go.Scatter3d(x = vector[0:nf, i, 0], y = vector[0:nf, i, 1], z = vector[nf-n_trace:nf, i, 2], mode = 'lines')
                             for i in index]) for nf in np.arange(n_frame)]
-                    layout_axis = dict(xaxis = dict(range = [vector_min[0], vector_max[0]], autorange = False),
-                        yaxis = dict(range = [vector_min[1], vector_min[1]], scaleanchor = 'x', scaleratio = 1, autorange = False),
-                        zaxis = dict(range = [vector_min[2], vector_min[2]], scaleanchor = 'x', scaleratio = 1, autorange = False))   
+                    layout_axis = dict(scene = dict(xaxis = dict(range = [vector_min[0], vector_max[0]], autorange = False),
+                        yaxis = dict(range = [vector_min[1], vector_min[1]], autorange = False),
+                        zaxis = dict(range = [vector_min[2], vector_min[2]], autorange = False),  aspectmode = 'cube'))
             # create animate button
             button_animate = dict(label = 'Play', method = 'animate', 
                 args = [None, dict(frame = dict(duration = 0, redraw = False), transition = dict(duration = 0), mode = 'immediate')])
@@ -191,7 +239,8 @@ class TaskClassicalGravitation:
                 hovermode = 'closest') | layout_axis | layout
             # create figure
             figure = json.loads(go.Figure(data = data, layout = layout, frames = frames).to_json())
-        except Exception:
+        except Exception as error:
+            print(error)
             figure = {}
         finally:
             return figure
@@ -209,7 +258,7 @@ class TaskClassicalGravitation:
     @classmethod
     def export(cls, solution: dict, sid: str, id: str) -> dict:
         try:
-            n_slice = 10
+            n_slice = 25
             n_trace = 50
             # extract data
             t = solution['t']
@@ -262,7 +311,6 @@ class TaskManager():
         print(f'TaskManager: postprocess({tasks})')
         [self.pool.apply_async(task.postprocess, args = (self.mng_dkt, self.mng_lock,), 
             callback = lambda result, channel = 'postprocess', sid = task.sid, id = task.id: self.callback_postprocess(channel, sid, id, result)) for task in tasks] 
-        pass
     
     def callback_process(self, channel, sid, id, result) -> None:
         """Callback function at processing task."""
@@ -275,9 +323,7 @@ class TaskManager():
             self.mng_lock.release()
         # emit results to client socket
         self.socketio.emit(channel, dict(id = id, sid = sid, worker = data['worker']), to = sid, namespace = '/solver')
-        # insert data to database
-        self.store(data)
-        
+                
     def callback_postprocess(self, channel, sid, id, result) -> None:
         """Callback function at postprocessing task."""
         try:
@@ -289,20 +335,7 @@ class TaskManager():
             self.mng_lock.release()
         # emit results to client socket
         self.socketio.emit(channel, dict(id = id, sid = sid, worker = data['worker']), to = sid, namespace = '/solver')
-        
-    def store(self, data: dict) -> None:
-        """Insert recort to specified task table."""
-        try:
-            match data['task_name']:
-                case 'TaskClassicalGravitation':                    
-                    task = models.Task_clsgrv(task_id = data['id'], t = data['problem']['mesh'].tolist(), 
-                        r = data['solution']['r'].tolist(), dr = data['solution']['dr'].tolist())
-                    with app.app_context():
-                        db.session.add(task)
-                        db.session.commit()
-        except Exception as error:
-            print(error)
-        
+    
     def registrate_client(self, sid: str) -> None:
         """Create client account in dict manager."""
         try:

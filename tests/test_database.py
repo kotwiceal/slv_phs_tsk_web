@@ -1,7 +1,7 @@
 """Thesing module of database manager system."""
 
 import time
-    
+        
 def test_task_fullsession(app_client, socketio_client, task_clsgrv_2d):
     """Test session: process, data storing, postprocessing."""
     
