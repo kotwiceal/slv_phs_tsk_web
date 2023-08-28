@@ -5,6 +5,7 @@ Return: modified flask instance
 from src import app, db, models
 from flask import request
 from flask_login import login_required
+import os
 
 @app.route('/')
 def index():
@@ -27,6 +28,8 @@ def postprocess():
         plots = app.task_manager.mng_dkt[response['sid']][response['id']]['plots'].copy()
         animations = app.task_manager.mng_dkt[response['sid']][response['id']]['animations'].copy()
         tables = app.task_manager.mng_dkt[response['sid']][response['id']]['tables'].copy()
+    except Exception as error:
+        print(error)
     finally:
         # release lock
         app.task_manager.mng_lock.release()

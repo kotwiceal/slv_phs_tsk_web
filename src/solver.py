@@ -1,26 +1,55 @@
 "This module provides implementation of parallel execution solving tasks."
-import multiprocessing, time, json
+import multiprocessing, time, json, os
 import numpy as np
 from scipy.integrate import odeint
 import plotly.graph_objects as go
-from src import app, db
-from src import models
 
-from sqlalchemy import create_engine, MetaData, Table, Column, Integer, String, Float, ARRAY
-from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy import create_engine, Column, String, Integer, Float, ARRAY
+from sqlalchemy.orm import sessionmaker, DeclarativeBase
 
-Base = declarative_base()
+from src import app
+
+class Base(DeclarativeBase): pass
+
+class MetaTask(type):
+    """To define default and specific methods of task class objects."""
+    def __new__(cls, clsname, bases, attrs):       
+        cls_obj =  super().__new__(cls, clsname, bases, attrs)
+        return cls_obj
+    
+    @staticmethod
+    def init():
+        # TODO
+        pass
+    
+    @staticmethod
+    def process():
+        # TODO
+        pass
+    
+    @staticmethod
+    def postprocess():
+        # TODO
+        pass
 
 class ModelTaskClassicalGravitation(Base):
-    """Table to store classical gravitation task results."""
+    """Table to store the results of classical gravitation task."""
     __tablename__ = 'task_clsgrv'
-    task_id = Column(String, primary_key = True)
-    t = Column(ARRAY(Float))
-    r = Column(ARRAY(Float))
-    dr = Column(ARRAY(Float))
+    id = Column(String, primary_key = True) # task identifier
+    dim = Column(Integer) # task dimension
+    num = Column(Integer) # count of bodies
+    g = Column(Float) # gravitational constant
+    m = Column(ARRAY(Float)) # mass of bodies
+    r0 = Column(ARRAY(Float)) # initial positions
+    dr0 = Column(ARRAY(Float)) # initial velocities
+    t = Column(ARRAY(Float)) # time mesh
+    r = Column(ARRAY(Float)) # solution: r(t)
+    dr = Column(ARRAY(Float)) # solution: dr(t)
         
+    def __init__(self, **kwargs):
+        [setattr(self, key, value.tolist() if type(value) is np.ndarray else value) for key, value in kwargs.items()]
     def __repr__(self):
-        return f'<{self.__tablename__} {self.task_id}>'
+        return f'<{self.__tablename__} {self.id}>'
 
 class NumpyEncoder(json.JSONEncoder):
     """Class to serialize ndarray object."""
@@ -33,9 +62,11 @@ def worker_watcher(mng_dkt, mng_lock):
     """Parametrize decorator in order to watch parallelized worker state and store results at calculation of task."""
     def decorator(function):
         def wrapper(*args, **kwargs):
+            # execute of goal function
             time_start = time.time()
             result = function(*args, **kwargs)
             time_end = time.time()
+            # store worker parameters
             result['worker'] = dict(pid = multiprocessing.current_process().pid, 
                 name = multiprocessing.current_process().name, 
                 time = time_end - time_start)
@@ -49,16 +80,13 @@ def worker_watcher(mng_dkt, mng_lock):
         return wrapper
     return decorator
 
-class TaskClassicalGravitation:
+class TaskClassicalGravitation(metaclass = MetaTask):
     """Numerical solving the cauchy problem of classical gravitation."""
     _valid_attr = ['problem', 'sid', 'id']
     def __init__(self, **kwargs) -> None:
         [setattr(self, key, kwargs.get(key, None)) for key in kwargs.keys() if key in self._valid_attr]
         self.status = False
-        
-        self.SQLALCHEMY_DATABASE_URI = "postgresql+psycopg2://postgres:testing@localhost/postgres"
-        engine = create_engine(self.SQLALCHEMY_DATABASE_URI)
-        Base.metadata.create_all(engine)
+        self._SQLALCHEMY_DATABASE_URI = os.environ['SQLALCHEMY_DATABASE_URI']
 
     def solve(self) -> dict:
         """Solve task."""
@@ -82,8 +110,9 @@ class TaskClassicalGravitation:
                 solution = dict(r = self.r, dr = self.dr, status = self.status), 
                 problem = self.problem)
             # store results into database
-            self.store(result)
-        return result
+            if self.status:
+                self.store(result)
+            return result
     
     def process(self, mng_dkt, mng_lock):
         """Solve task at parallelized worker session."""
@@ -99,21 +128,23 @@ class TaskClassicalGravitation:
             # solution['t'] = mng_dkt[self.sid][self.id]['problem']['mesh'].copy()
   
             # extract record from database
-            engine = create_engine(self.SQLALCHEMY_DATABASE_URI)
+            engine = create_engine(self._SQLALCHEMY_DATABASE_URI)
             Session = sessionmaker(engine)
             with Session() as session:
-                task = session.query(ModelTaskClassicalGravitation).filter_by(task_id = self.id).all()
-                solution = dict(t = np.array(task[0].t), r = np.array(task[0].r), dr = np.array(task[0].dr), status = True)
+                task = session.query(ModelTaskClassicalGravitation).filter_by(id = self.id).first()
+                solution = {key: np.array(value) if type(value) is list else value for key, value in task.__dict__.items()}
+                solution['status'] = True
                 session.commit()
-        except:
+        except Exception as error:
+            app.logger.error(error)
             # empty record by SID or/and ID
             solution = dict(status = False)
         finally:
             pass
             # release lock
             # mng_lock.release()
-        if solution['status']:
-            worker_watcher(mng_dkt, mng_lock)(self.export)(solution, self.sid, self.id)
+            if solution['status']:
+                worker_watcher(mng_dkt, mng_lock)(self.export)(solution, self.sid, self.id)
 
     def system_equations(self, argument: np.ndarray, t: float, *parameters) -> np.ndarray:
         """Assemble the cauchy problem."""
@@ -154,20 +185,39 @@ class TaskClassicalGravitation:
         return vector       
         
     def store(self, data: dict) -> None:
-        """Insert processed task result to specific table."""
+        """Insert processed task results to specific table."""
         try:
             # create task model
-            task = ModelTaskClassicalGravitation(task_id = data['id'], t = data['problem']['mesh'].tolist(), 
-                r = data['solution']['r'].tolist(), dr = data['solution']['dr'].tolist())
+            task = ModelTaskClassicalGravitation(id = data['id'], g = data['problem']['g'],
+                dim = data['problem']['dimension'], num = data['problem']['order'], 
+                m = data['problem']['m'], r0 = data['problem']['r0'], dr0 = data['problem']['dr0'], 
+                t = data['problem']['mesh'], r = data['solution']['r'], 
+                dr = data['solution']['dr'])
             # store record
-            engine = create_engine(self.SQLALCHEMY_DATABASE_URI)
+            engine = create_engine(self._SQLALCHEMY_DATABASE_URI)
             Session = sessionmaker(engine)
             with Session() as session:
-                query = session.query(ModelTaskClassicalGravitation).filter_by(task_id = data['id']).first()                
+                query = session.query(ModelTaskClassicalGravitation).filter_by(id = data['id']).first()                
                 session.add(task) if query is None else session.update(task)
                 session.commit()
         except Exception as error:
             print(error)
+      
+    @staticmethod
+    def build_problem(data: dict) -> dict:
+        """Assemble problem of classical gravitation."""
+        order = len(data['initial'])
+        dimension = len(data['initial'][0]['r'])
+        mesh = np.linspace(data['physics']['t'][0], data['physics']['t'][1], num = data['physics']['t'][2])
+        m = [value['m'] for value in data['initial']]
+        r0 = np.array([body['r'] for body in data['initial']])
+        dr0 = np.array([body['dr'] for body in data['initial']])
+        initial = np.array([[body['r'], body['dr']] for body in data['initial']])
+        initial = np.moveaxis(initial, (0, 1, 2), (0, 2, 1)).flatten()
+        g = data['physics']['g']
+        problem = dict(initial = initial, mesh = mesh, dimension = dimension, order = order, 
+            m = m, g = g, r0 = r0, dr0 = dr0)
+        return problem
         
     @staticmethod
     def plot(vector: np.ndarray, layout: dict = {}) -> dict:
@@ -302,13 +352,12 @@ class TaskManager():
     
     def process(self, tasks: list) -> None:
         """Launch pool processing session."""
-        print(f'TaskManager: process({tasks})')
-        [self.pool.apply_async(task.process, args = (self.mng_dkt, self.mng_lock,), 
+        pool = [self.pool.apply_async(task.process, args = (self.mng_dkt, self.mng_lock,), 
             callback = lambda result, channel = 'process', sid = task.sid, id = task.id: self.callback_process(channel, sid, id, result)) for task in tasks]   
+        pool
     
     def postprocess(self, tasks: list) -> None:
         """Launch pool postprocessing session."""
-        print(f'TaskManager: postprocess({tasks})')
         [self.pool.apply_async(task.postprocess, args = (self.mng_dkt, self.mng_lock,), 
             callback = lambda result, channel = 'postprocess', sid = task.sid, id = task.id: self.callback_postprocess(channel, sid, id, result)) for task in tasks] 
     
@@ -350,15 +399,3 @@ class TaskManager():
         """Finishing pool session."""
         self.pool.close()
         self.pool.join()
-
-def build_problem_classical_gravitation(data: dict) -> dict:
-    """Assemble problem of classical gravitation."""
-    order = len(data['initial'])
-    dimension = len(data['initial'][0]['r'])
-    mesh = np.linspace(data['physics']['t'][0], data['physics']['t'][1], num = data['physics']['t'][2])
-    m = [value['m'] for value in data['initial']]
-    initial = np.array([[body['r'], body['dr']] for body in data['initial']])
-    initial = np.moveaxis(initial, (0, 1, 2), (0, 2, 1)).flatten()
-    g = data['physics']['g']
-    problem = dict(initial = initial, mesh = mesh, dimension = dimension, order = order, m = m, g = g)
-    return problem

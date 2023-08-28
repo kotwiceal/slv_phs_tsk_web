@@ -32,7 +32,7 @@ def ns_on_process(data: list):
     for task in data:
         match task['type']['id']:
             case 'tsk_cgrv':
-                tasks.append(solver.TaskClassicalGravitation(problem = solver.build_problem_classical_gravitation(task['problem']), 
+                tasks.append(solver.TaskClassicalGravitation(problem = solver.TaskClassicalGravitation.build_problem(task['problem']), 
                     sid = request.sid, id = task['id']))
     app.task_manager.process(tasks)
     

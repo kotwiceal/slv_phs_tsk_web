@@ -21,6 +21,7 @@ pytest = "^7.4.0"
 flask-login = "^0.6.2"
 flask-sqlalchemy = "^3.0.5"
 flask-bcrypt = "^1.0.1"
+python-dotenv = "^1.0.0"
 
 [tool.poetry.group.dev.dependencies]
 ipykernel = "^6.25.0"

@@ -7,9 +7,11 @@ from flask_login import LoginManager
 from flask_sqlalchemy import SQLAlchemy
 from flask_bcrypt import Bcrypt
 from flask_socketio import SocketIO
-import json
+import os, json, dotenv
 
-# create flask instance with indication path of static files (scr/static)
+from sqlalchemy import create_engine
+
+# create flask instance with indication a path of static files (scr/static)
 app = Flask(__name__, static_url_path = '/static')    
 # create login manager
 login_manager = LoginManager()
@@ -27,16 +29,27 @@ def init_app():
     """Initialize application."""
     # create task manager instance
     app.task_manager = solver.TaskManager(4, socketio)
-    # load config file
-    app.config.from_file('config.json', load = json.load)
+    
+    # load environment variables
+    dotenv.load_dotenv()
+    config = dotenv.dotenv_values()
+    app.config.from_mapping(config)
+    
     # initiate login manager
     login_manager.init_app(app)
-    # initialize sqlalchemy
+    
+    # initialize flask-sqlalchemy
     db.init_app(app)
     with app.app_context():
         db.create_all()
-    # initialte bcypt
+        
+    # initialize models of tasks
+    engine = create_engine(os.environ['SQLALCHEMY_DATABASE_URI'])
+    solver.Base.metadata.create_all(engine)
+        
+    # initialte bcrypt
     bcrypt.init_app(app)
+    
     # register blueprint
     app.register_blueprint(account.auth)
     

@@ -20,7 +20,7 @@ def socketio_client():
 def task_clsgrv_2d():
     """Create 2D problem of classical gravitation task."""
     tasks = [
-        dict(id = '7b8e6b9da38ae0037a7a1f7dbcd29ea9', type = dict(id = 'tsk_cgrv', label = 'Classical gravitation'),
+        dict(id = 'ca499813037e8c4b37f4d1465ace2930', type = dict(id = 'tsk_cgrv', label = 'Classical gravitation'),
             problem = dict(dimension = 2, initial = [
                     dict(r = [-2, 0], dr = [0, 0], m = 1),
                     dict(r = [2, 2], dr = [0, 0], m = 1),
