@@ -1,6 +1,6 @@
 """This module privides authorization functional."""
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, redirect
 from flask_login import current_user, login_required, login_user, logout_user
 from src import app, db, login_manager, models
 
@@ -9,7 +9,7 @@ auth = Blueprint('auth', __name__)
 @login_manager.user_loader
 def load_user(user_id: str):
     return models.User.query.filter(models.User.id == int(user_id)).first()
-
+    
 @auth.route('/signin', methods = ['GET', 'POST'])
 def sign_in():
     if request.method == 'GET':
@@ -19,10 +19,13 @@ def sign_in():
         data = request.get_json()
         user = models.User.query.filter_by(login = data['user']).first()
         if user:
-            login_user(user, remember = True)
-            return dict(message = 'User has been authorized', state = True, tasks = [])
+            if user.check_password(data['password']):
+                login_user(user, remember = False)
+                return dict(message = 'User has been authorized', state = True, tasks = [])
+            else:
+                return dict(message = 'Invalid password', state = False, tasks = [])
         else:
-            return dict(message = 'User has not been authorized: account is not exist', state = False, tasks = [])
+            return dict(message = 'User has not been authorized: account does not exist', state = False, tasks = [])
 
 @auth.route('/signup', methods = ['GET', 'POST'])
 def sign_up():
@@ -38,7 +41,8 @@ def sign_up():
         return dict(message = 'User has been registered', state = True, tasks = [])
 
 @auth.route('/signout', methods = ['GET'])
+@login_required
 def sign_out():
     logout_user()
-    return jsonify(status = 200)
+    return redirect('/')
 

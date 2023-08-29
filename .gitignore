@@ -7,3 +7,4 @@ src/static/package-lock.json
 src/static/dist
 .env
 .pytest_cache/
+flask_session

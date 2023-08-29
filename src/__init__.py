@@ -7,6 +7,7 @@ from flask_login import LoginManager
 from flask_sqlalchemy import SQLAlchemy
 from flask_bcrypt import Bcrypt
 from flask_socketio import SocketIO
+from flask_session import Session
 import os, json, dotenv
 
 from sqlalchemy import create_engine
@@ -21,6 +22,8 @@ db = SQLAlchemy()
 bcrypt = Bcrypt()
 # create socketio instance
 socketio = SocketIO(app, logger = True)
+# create ssession instance
+sess = Session()
 
 # import handlers
 from src import account, views, models, sockets, solver
@@ -52,6 +55,9 @@ def init_app():
     
     # register blueprint
     app.register_blueprint(account.auth)
+    
+    # initiate session
+    sess.init_app(app)
     
 def start_app():
     """Launch application."""

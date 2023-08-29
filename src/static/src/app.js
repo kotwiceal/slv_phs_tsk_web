@@ -994,6 +994,7 @@ class App {
 
         // create workspace
         this.workspace = new Workspace()
+        // this.workspace.socket.disconnect()
         this.workspace.export.hide()
         // append to parent element
         this.parent.append(this.workspace.export)
@@ -1008,17 +1009,18 @@ class App {
             // erase and hide workspace
             this.workspace.empty()
             this.workspace.export.hide()
+            this.workspace.socket.disconnect()
 
-            fetch('/singout').then(response => {
+            fetch('/signout').then(response => {
                 console.log(response)
+                // show the sign in dialog
+                this.login.modal.show()
+                this.login.show('sign_in')
             })
-
-            // show sign in dialog
-            this.login.modal.show()
-            this.login.show('sign_in')
         }
 
         this.login.proceed = (data) => {
+            this.workspace.socket.connect()
             // erase workspace items 
             this.workspace.empty()
             this.workspace.export.show()

@@ -395,6 +395,9 @@ class TaskManager():
             # release lock
             self.mng_lock.release()
         
+    def clear(self):
+        self.mng_dkt.clear()
+        
     def close(self) -> None:
         """Finishing pool session."""
         self.pool.close()

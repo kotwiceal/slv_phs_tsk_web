@@ -5,7 +5,6 @@ Return: modified flask instance
 from src import app, db, models
 from flask import request
 from flask_login import login_required
-import os
 
 @app.route('/')
 def index():
