@@ -1,8 +1,7 @@
 /**
- * @brief configurate webpack
+ * @brief Configurate webpack assembling.
  */
 
-// load tools
 const webpack = require('webpack')
 const path = require('path')
 const {CleanWebpackPlugin} = require('clean-webpack-plugin')
@@ -10,12 +9,16 @@ const HtmlWebpackPlugin = require('html-webpack-plugin')
 
 module.exports = {
     mode: 'development',
-    entry: {
-        main: path.resolve(__dirname, './src/index.js'),
-    },
+    entry: './src/index.jsx',
     output: {
         path: path.resolve(__dirname, './dist'),
-        filename: '[name].bundle.js',
+        filename: '[name].js',
+    },
+    resolve: {
+        alias: {
+            component: path.resolve(__dirname, 'src/components')
+        },
+        extensions: ['.js', '.jsx']
     },
     plugins: [
         new CleanWebpackPlugin(),
@@ -28,11 +31,8 @@ module.exports = {
         new webpack.HotModuleReplacementPlugin(),
         new webpack.ProvidePlugin(
             {
-                $: 'jquery',
-                jQuery: 'jquery',
-                Plotly: 'plotly.js-dist',
-                bootstrap: 'bootstrap',
-                sha256: 'js-sha256'
+                React: 'react',
+                ReactDOM: 'react-dom'
             }
         ),
     ],
@@ -42,6 +42,11 @@ module.exports = {
                 test: /\.css$/,
                 use: ['style-loader', 'css-loader'],
             },
+            {
+                test: /\.(js|jsx)$/,
+                exclude: '/node_modules/',
+                use: ['babel-loader']
+            }
         ],
     },
 }
