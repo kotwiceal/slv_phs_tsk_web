@@ -17,7 +17,7 @@ import {useFormContext} from 'react-hook-form'
 const validateHandles = {
     /**
      * @brief Validate numeric string.
-     * @param {*} value string
+     * @param {string} value current value
      * @returns true if value is number otherwise string error message
      */
     textNumber: (value) => {
@@ -35,8 +35,8 @@ const validateHandles = {
     },
     /**
      * @brief Validate numeric string belonging to the specified range.
-     * @param {*} value string
-     * @param {*} range length-2 numeric array like [min, max]
+     * @param {string} value current value
+     * @param {array} range length-2 numeric array like [min, max]
      * @returns true if value is number belonging the range otherwise string error message
      */
     rangeNumber: (value, range) => {
@@ -56,7 +56,7 @@ const validateHandles = {
     },
     /**
      * @brief Validate string JSON-array.
-     * @param {*} value string 
+     * @param {string} value current value 
      * @returns true if value is string JSON-array otherwise string error message
      */
     jsonArray: (value) => {
@@ -74,8 +74,8 @@ const validateHandles = {
     },
     /**
      * @brief Validate string JSON-array each value belonged to the specified range.
-     * @param {*} value string
-     * @param {*} range length-2 numeric array like [min, max]
+     * @param {string} value currect value
+     * @param {array} range length-2 numeric array like [min, max]
      * @returns true if value is string JSON-array each value belonged to the specified range
      *  otherwise string error message
      */
@@ -105,8 +105,8 @@ const validateHandles = {
     },
     /**
      * @brief Validate string JSON-array with specified length.
-     * @param {*} value string
-     * @param {*} length number specified length
+     * @param {array} value string
+     * @param {number} length number specified length
      * @returns true if value is string JSON-array ith specified length otherwise string error message
      */
     lengthArray: (value, length) => {
@@ -132,7 +132,7 @@ const validateHandles = {
 
 /**
  * @brief Define validation handles to control number input form.
- * @param {*} range length-2 numeric array like [min, max]
+ * @param {array} range length-2 numeric array like [min, max]
  * @returns object of validation hondles 
  */
 const validateHandlesNumber = (range) => {
@@ -145,8 +145,8 @@ const validateHandlesNumber = (range) => {
 
 /**
  * @brief Define validation handles to control array-JSON input form.
- * @param {*} range length-2 numeric array like [min, max]
- * @param {*} length number of array length
+ * @param {array} range length-2 numeric array like [min, max]
+ * @param {number} length number of array length
  * @returns object of validation hondles 
  */
 const validateHandlesArray = (range, length) => {
@@ -173,7 +173,7 @@ const setValueAsJSON = value => {
 
 /**
  * @brief Numerical input form component with specified  elements value range and length validation.
- * @param {*} prop object {name: string, label: string, range: object}
+ * @param {object} prop object {name: string, label: string, range: object}
  * @returns react component
  */
 const NumberInputPattern = ({prop}) => {
@@ -189,7 +189,7 @@ const NumberInputPattern = ({prop}) => {
 
 /**
  * @brief JSON array input form component with specified  elements value range and length validation.
- * @param {*} prop object {name: string, label: string, range: object, length: number}
+ * @param {object} prop object {name: string, label: string, range: object, length: number}
  * @returns react component
  */
 const ArrayInputPattern = (prop) => {
@@ -217,7 +217,7 @@ const ArrayInputPattern = (prop) => {
  * @param {object} validate `validate` object of react-hook form
  * @param {object} setValueAs `setValueAs` object of react-hook form
  * @param {RegExp} pattern template of input text validation
- * @returns 
+ * @returns custom react input form component
  */
 const TextInputPattern = ({type, asInput, label, name, value, autoComplete, required, validate, setValueAs, pattern}) => {
     const {register, formState, setValue, getFieldState} = useFormContext()
@@ -267,8 +267,79 @@ const TextInputPattern = ({type, asInput, label, name, value, autoComplete, requ
     )
 }
 
+/**
+ * @brief Generalized radio button group.
+ * @param {string} name input form alias for `register` of react-hook form 
+ * @param {boolean} inline appearance attribute of `react-bootstrap` component
+ * @param {array} radios configuration of radios button group like `[{label: string, value: number|string}]`
+ * @returns custom react radio component
+ */
+const RadioPattern = ({name, inline, radios}) => {
+    const {register, formState} = useFormContext()
+    const {error} = getFieldState(name, formState)
+
+    return (
+    <>
+    <Form.Group>
+        {
+            radios.map((radio) => (
+                    <Form.Check 
+                        type = 'radio' 
+                        key = {radio.label} 
+                        inline = {inline}
+                        value = {radio.value} 
+                        label = {radio.label} 
+                        {...register(name, {validate: handleValidateRadio})}
+                    />
+                )
+            )
+        }
+        <Form.Control.Feedback type = {error ? 'invalid' : 'valid'}>
+            {error && error.message}
+        </Form.Control.Feedback>
+    </Form.Group>
+    </>
+    )
+}
+
+/**
+ * @brief Generalized range.
+ * @param {string} name input form alias for `register` of react-hook form 
+ * @param {string} label label displaying
+ * @param {number} min lower limit
+ * @param {number} max upper limit
+ * @param {number} step stride
+ * @returns custom react range component
+ */
+const RangePattern = ({name, label, min, max, step}) => {
+    const {register, setValue, getValues} = useFormContext()
+    const [valueLabel, setValueLabel] = useState(getValues(name))
+
+    return (<>
+        <Form.Group>
+            <Form.Label>{`${label}: ${valueLabel}`}</Form.Label>
+            <Form.Range
+                min = {min}
+                max = {max}
+                step = {step}
+                onInput = {(event) => {
+                    setValue(name, event.target.value)
+                    setValueLabel(event.target.value)
+                }}
+                {
+                    ...register(name, {
+                        setValueAs: value => parseInt(value)
+                    })
+                }
+            />
+        </Form.Group>
+    </>)
+}
+
 export {
     TextInputPattern, 
     NumberInputPattern, 
-    ArrayInputPattern
+    ArrayInputPattern,
+    RadioPattern,
+    RangePattern
 }
