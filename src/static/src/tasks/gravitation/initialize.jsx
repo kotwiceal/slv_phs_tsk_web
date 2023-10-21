@@ -13,15 +13,146 @@ import Card from 'react-bootstrap/Card'
 import Modal from 'react-bootstrap/Modal'
 import Spinner from 'react-bootstrap/Spinner'
 import Stack from 'react-bootstrap/Stack'
+import ListGroup from 'react-bootstrap/ListGroup'
+import Dropdown from 'react-bootstrap/Dropdown'
 
 // import react hooks
-import {useState} from 'react'
+import {useState, useEffect} from 'react'
 // import react-hook-form dependencies
-import {useForm, FormProvider} from 'react-hook-form'
+import {useForm, FormProvider, useFieldArray, useWatch, useFormContext} from 'react-hook-form'
 
 // import custom components
-import {NumberInputPattern, RadioPattern} from '../../patterns/toolkit'
+import {NumberInputPattern, ArrayInputPattern, RadioPattern} from '../../patterns/toolkit'
 import {ProblemAnnatation} from './description'
+
+/**
+ * @param {number} index
+ * @param {number} length
+ * @param {object} handleDelete
+ * @param {string} fielArrayName
+ * @returns custom react component
+ */
+const Body = ({index, length, handleDelete, fielArrayName}) => {
+
+    const {control} = useFormContext()
+    const watchDimension = useWatch({control, name: 'dim'})
+
+    const labelPosttionPattern = {2: '[x,y]', 3: '[x,y,z]'}
+    const labelVelocityPattern = {2: '[u,v]', 3: '[u,v,w]'}
+
+    const [labelPosttion, setLabelPostion] = useState('[x,y]')
+    const [labelVelocity, setlabelVelocity] = useState('[u,v]')
+
+    useEffect(() => {
+        setLabelPostion(labelPosttionPattern[watchDimension])
+        setlabelVelocity(labelVelocityPattern[watchDimension])
+    }, [watchDimension])
+
+    return (<>
+    <ListGroup.Item>
+        <Stack direction = 'horizontal' gap = {3}>
+            <ArrayInputPattern 
+                label = {labelPosttion}
+                name = {`${fielArrayName}.${index}.r`}
+                length = {length} 
+                range = {[-10, 10]}
+            />
+            <ArrayInputPattern 
+                label = {labelVelocity}
+                name = {`${fielArrayName}.${index}.dr`}
+                length = {length} 
+                range = {[-10, 10]}
+            />
+            <NumberInputPattern 
+                label = 'm' 
+                name = {`${fielArrayName}.${index}.m`}
+                range = {[0, 10]}
+            />
+            <Button variant = 'danger' onClick = {handleDelete}>
+                <i className = 'bi bi-trash-fill'/>
+            </Button>
+        </Stack>
+    </ListGroup.Item>
+    </>)
+}
+
+const Bodies = () => {
+
+    const fielArrayName = 'bodies'
+
+    const {control, trigger} = useFormContext()
+
+    const {fields, append, remove} = useFieldArray({
+        control, name: fielArrayName
+    })
+
+    // change length of inputs array according to dimension value of radio group
+    const dimensionWatch = useWatch({control, name: 'dim'})
+    const [length, setlength] = useState(parseInt(dimensionWatch))
+
+    useEffect(() => {
+        setlength(parseInt(dimensionWatch))
+    }, [dimensionWatch])
+
+    useEffect(() => {
+        trigger(fielArrayName)
+    }, [length])
+
+    // define CRUD handles
+    const handleAdd = () => {
+        let data = {r: [0, 0], dr: [0, 0], m: 1}
+        if (length == 2) {
+            data = {r: [0, 0], dr: [1, 1], m: 1}
+        } else {
+            data = {r: [0, 0, 0], dr: [1, 0, 1], m: 1}
+        }
+        append(data)
+    }
+
+    const handleDelete = (index) => {
+        remove(index)
+    }
+
+    return (<>
+        <Card className = 'mt-3'>
+            <Card.Header>Bodies</Card.Header>
+            <Card.Body>
+                <Stack gap = {2}>
+                    <ButtonGroup className = 'mb-3'>
+                        <Button onClick = {handleAdd}>
+                            <i className = 'bi bi-plus-square'/>
+                        </Button>
+                        <Dropdown 
+                            className = 'w-50' 
+                            drop = 'down-centered' 
+                            align = 'start' 
+                            as = {ButtonGroup}
+                        >
+                            <Dropdown.Toggle>
+                                <i className = 'bi bi-palette-fill'/>
+                            </Dropdown.Toggle>
+                            <Dropdown.Menu as = {MonitorPalette}>
+                            </Dropdown.Menu>    
+                        </Dropdown>
+                    </ButtonGroup>
+                    <ListGroup>
+                    {
+                        fields.map((field, index) => (
+                            <Body 
+                                key = {field.id}
+                                index = {index}
+                                length = {length}
+                                handleDelete = {() => {handleDelete(index)}}
+                                fielArrayName = {fielArrayName}
+                            />
+                        ))
+                    }
+                    </ListGroup>
+                </Stack>
+            </Card.Body>
+        </Card>
+    </>)
+}
 
 const Problem = () => {
     return (<>
@@ -105,6 +236,11 @@ const SolverParameters = () => {
     </>)
 }
 
+/**
+ * @param {boolean} show
+ * @param {object} setShow
+ * @returns custom react component
+ */
 const AdvanceMenu = ({show, setShow}) => {
     
     const handleClose = () => {setShow(false)}
@@ -175,6 +311,7 @@ const InitTaskGravitation = () => {
                         <SolverParameters/>
                     </Col>
                 </Row>
+                <Bodies/>
                 <Row>
                     <ButtonGroup className = 'mt-3'>
                         <Button variant = 'secondary' type = 'submit'>
