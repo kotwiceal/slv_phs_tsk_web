@@ -17,13 +17,121 @@ import ListGroup from 'react-bootstrap/ListGroup'
 import Dropdown from 'react-bootstrap/Dropdown'
 
 // import react hooks
-import {useState, useEffect} from 'react'
+import {useState, useEffect, useMemo, forwardRef} from 'react'
 // import react-hook-form dependencies
 import {useForm, FormProvider, useFieldArray, useWatch, useFormContext} from 'react-hook-form'
 
 // import custom components
-import {NumberInputPattern, ArrayInputPattern, RadioPattern} from '../../patterns/toolkit'
+import {NumberInputPattern, ArrayInputPattern, RadioPattern, RangePattern} from '../../patterns/toolkit'
 import {ProblemAnnatation} from './description'
+import {PlaceholderPattern} from '../../patterns/placeholders'
+
+// import plotter
+import Plot from 'react-plotly.js'
+
+/**
+ * @param {string} fielArrayName 
+ * @returns custom react component
+ */
+const MonitorFigure = ({fielArrayName}) => {
+
+    const {control, getFieldState, formState} = useFormContext()
+    const {error} = getFieldState(fielArrayName, formState)
+    const watchDimension = useWatch({control, name: 'dim'})
+    const watchFieldArray = useWatch({control, name: fielArrayName})
+    const watchScales = useWatch({control, name: ['scale_m', 'scale_dr']})
+
+    const [placeholder, setPlaceholder] = useState(true)
+    
+    const [layout, setLayout] = useState({
+            autosize: true,
+            showTips: false,
+            plot_bgcolor: '#212529',
+            paper_bgcolor: '#212529',
+            font: {color: '#b4c1d1'},
+            showlegend: true,
+            title: 'Initial state', autosize: true,
+            xaxis: {title: 'x'},
+            yaxis: {title: 'y'},
+    })
+
+    const plotData = useMemo(() => {
+        let result = []
+        if ((error === undefined) && watchFieldArray.length !== 0) {
+            setPlaceholder(true)
+
+            let bodies = watchFieldArray
+
+            if (watchDimension == '2') {
+                result = bodies.map((body, index) => ({
+                        type: 'scatter', 
+                        x: [body.r[0], body.r[0] + watchScales[1]*body.dr[0]], 
+                        y: [body.r[1], body.r[1] + watchScales[1]*body.dr[1]], 
+                        name: index,
+                        marker: {symbol: ['circle', 'arrow'], angleref: 'previous', size: watchScales[0]*body.m}
+                    }
+                ))    
+            } else {
+                result = bodies.map((body, index) => ({
+                    type: 'scatter3d', 
+                    x: [body.r[0], body.r[0] + watchScales[1]*body.dr[0]], 
+                    y: [body.r[1], body.r[1] + watchScales[1]*body.dr[1]], 
+                    z: [body.r[2], body.r[2] + watchScales[1]*body.dr[2]], 
+                    name: index,
+                    marker: {symbol: ['circle', 'arrow'], angleref: 'previous', size: watchScales[0]*body.m}
+                }
+            )) 
+            }
+        } else {
+            setPlaceholder(false)
+        }  
+        return result 
+    }, [watchFieldArray, watchDimension, error, watchScales])
+
+    return (<>
+    <PlaceholderPattern state = {placeholder} xs = {12}>
+        <Plot
+            data = {plotData}
+            layout = {layout}
+            config = {{displayModeBar: false}}
+        />
+    </PlaceholderPattern>
+    </>)
+}
+
+/**
+ * @param {string} style
+ * @param {string} className
+ * @param {object} ref
+ */
+const MonitorPalette = forwardRef(({style, className}, ref) => {
+    // TODO: close menu
+    return (<>
+    <Stack 
+        ref = {ref}
+        style = {style}
+        className = {className}
+        gap = {3}
+    >
+        <Container>
+            <RangePattern
+                name = 'scale_m'
+                label = 'Mass scale'
+                min = {1} 
+                max = {100} 
+                step = {1}
+            />
+            <RangePattern 
+                name = 'scale_dr'
+                label = 'Vector scale'
+                min = {1} 
+                max = {100} 
+                step = {1}
+            />
+        </Container>
+    </Stack>
+    </>)
+})
 
 /**
  * @param {number} index
@@ -148,6 +256,7 @@ const Bodies = () => {
                         ))
                     }
                     </ListGroup>
+                    <MonitorFigure fielArrayName = {fielArrayName}/>
                 </Stack>
             </Card.Body>
         </Card>
