@@ -2,6 +2,9 @@
  * @brief The module provides reuse components
  */
 
+// import encryptor
+import {sha256} from 'js-sha256'
+// import custom components
 import {TextInputPattern} from '../patterns/inputs'
 
 const LoginInputPattern = (prop) => {
