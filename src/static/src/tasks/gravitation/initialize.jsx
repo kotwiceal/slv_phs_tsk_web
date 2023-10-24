@@ -22,7 +22,7 @@ import {useState, useEffect, useMemo, forwardRef} from 'react'
 import {useForm, FormProvider, useFieldArray, useWatch, useFormContext} from 'react-hook-form'
 
 // import custom components
-import {NumberInputPattern, ArrayInputPattern, RadioPattern, RangePattern} from '../../patterns/toolkit'
+import {NumberInputPattern, ArrayInputPattern, RadioPattern, RangePattern} from '../../patterns/inputs'
 import {ProblemAnnatation} from './description'
 import {PlaceholderPattern} from '../../patterns/placeholders'
 
@@ -57,7 +57,7 @@ const MonitorFigure = ({fielArrayName}) => {
 
     const plotData = useMemo(() => {
         let result = []
-        if ((error === undefined) && watchFieldArray.length !== 0) {
+        if ((error === undefined) && Array.isArray(watchFieldArray)) {
             setPlaceholder(true)
 
             let bodies = watchFieldArray
@@ -377,7 +377,7 @@ const AdvanceMenu = ({show, setShow}) => {
  * @brief Main inputs form.
  * @returns custom react component
  */
-const InitTaskGravitation = () => {
+const InitializeTaskGravitation = () => {
     const methods = useForm({
         mode: 'all',
         defaultValues: {
@@ -437,4 +437,4 @@ const InitTaskGravitation = () => {
     </>)
 }
 
-export {InitTaskGravitation}
+export {InitializeTaskGravitation}

@@ -7,7 +7,7 @@
 import Form from 'react-bootstrap/Form'
 
 // import react hooks
-import {useCallback} from 'react'
+import {useState, useCallback} from 'react'
 // import react-hook-form dependencies
 import {useFormContext} from 'react-hook-form'
 
@@ -176,9 +176,9 @@ const setValueAsJSON = value => {
  * @param {*} prop object {name: string, label: string, range: object}
  * @returns react component
  */
-const NumberInputPattern = ({prop}) => {
+const NumberInputPattern = (prop) => {
     const {range} = prop
-    const handle = useCallback(() => validateHandlesNumber(range, length), [range, length])
+    const handle = useCallback(() => validateHandlesNumber(range), [range])
 
     return <TextInputPattern {...prop}
         required = {{required: 'Value must not be empty'}}
@@ -267,8 +267,118 @@ const TextInputPattern = ({type, asInput, label, name, value, autoComplete, requ
     )
 }
 
+/**
+ * @param {string} label 
+ * @param {string} name
+ * @param {object} required
+ * @param {object} options
+ * @returns custom react component
+ */
+const SelectPattern = ({label, name, required, options} ) => {
+
+    const {register, formState, getFieldState} = useFormContext()
+    const {error} = getFieldState(name, formState)
+
+    return (
+        <>
+            <Form.Group>
+                <Form.FloatingLabel label= {label}>
+                    <Form.Select 
+                        {...register(name, {...required})}
+                    >
+                        {
+                            options.map((option, index) => (
+                                <option 
+                                    key = {index}
+                                    value = {option.value}
+                                >
+                                    {option.label}
+                                </option>
+                            ))
+                        }
+                    </Form.Select>
+                    <Form.Control.Feedback type = {error ? 'invalid' : 'valid'}>
+                        {error && error.message}
+                    </Form.Control.Feedback>
+                </Form.FloatingLabel>
+            </Form.Group>
+        </>
+    )
+}
+
+/**
+ * @param {string} label 
+ * @param {string} name
+ * @param {number} min
+ * @param {number} max
+ * @param {number} step
+ * @returns custom react component
+ */
+const RangePattern = ({name, label, min, max, step} ) => {
+    const {register, setValue, getValues} = useFormContext()
+    const [valueLabel, setValueLabel] = useState(getValues(name))
+
+    return (<>
+        <Form.Group>
+            <Form.Label>{`${label}: ${valueLabel}`}</Form.Label>
+            <Form.Range
+                min = {min}
+                max = {max}
+                step = {step}
+                onInput = {(event) => {
+                    setValue(name, event.target.value)
+                    setValueLabel(event.target.value)
+                }}
+                {
+                    ...register(name, {
+                        setValueAs: value => parseInt(value)
+                    })
+                }
+            />
+        </Form.Group>
+    </>)
+}
+
+/**
+ * @param {string} name 
+ * @param {boolean} inline 
+ * @param {object} radios
+ * @returns custom react component
+ */
+const RadioPattern = ({name, inline, radios} ) => {
+    
+    const {register, formState, getFieldState } = useFormContext()
+    const {error} = getFieldState(name, formState)
+
+    return (
+    <>
+    <Form.Group className = 'mb-2'>
+        {
+            radios.map((radio) => (
+                    <Form.Check 
+                        type = 'radio' 
+                        key = {radio.label} 
+                        inline = {inline}
+                        value = {radio.value} 
+                        label = {radio.label} 
+                        {...register(name)}
+                    />
+                )
+            )
+        }
+        <Form.Control.Feedback type = {error ? 'invalid' : 'valid'}>
+            {error && error.message}
+        </Form.Control.Feedback>
+    </Form.Group>
+    </>
+    )
+}
+
 export {
     TextInputPattern, 
     NumberInputPattern, 
-    ArrayInputPattern
+    ArrayInputPattern,
+    SelectPattern,
+    RangePattern,
+    RadioPattern
 }

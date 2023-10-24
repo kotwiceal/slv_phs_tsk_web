@@ -2,6 +2,9 @@
  * @brief The module provides placeholder components
  */
 
+// import bootstrap dependencies
+import Placeholder from 'react-bootstrap/Placeholder'
+
 const PlaceholderImagePattern = () => {
     return (
         <>
