@@ -4,6 +4,7 @@
 
 const webpack = require('webpack')
 const path = require('path')
+const autoprefixer = require('autoprefixer')
 const {CleanWebpackPlugin} = require('clean-webpack-plugin')
 const HtmlWebpackPlugin = require('html-webpack-plugin')
 
@@ -39,8 +40,8 @@ module.exports = {
     module: {
         rules: [
             {
-                test: /\.css$/,
-                use: ['style-loader', 'css-loader'],
+            test: /\.(scss|css)$/,
+              use: ['style-loader', 'css-loader', 'postcss-loader', 'sass-loader'],
             },
             {
                 test: /\.(js|jsx)$/,

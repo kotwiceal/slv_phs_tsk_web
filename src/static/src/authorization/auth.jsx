@@ -15,6 +15,11 @@ import Stack from 'react-bootstrap/Stack'
 import {useEffect, useState} from 'react'
 // import react-hook-form dependencies
 import {useForm, useWatch, FormProvider} from 'react-hook-form'
+// import react-router-dom dependencies
+import {useNavigate, Outlet} from 'react-router-dom'
+// import redux dependencies
+import {useSelector, useDispatch} from 'react-redux'
+
 // import custom components
 import {LoginInputPattern, PasswordInputPattern} from './inputs'
 
@@ -24,11 +29,12 @@ import {LoginInputPattern, PasswordInputPattern} from './inputs'
  */
 const Sign = ({signup}) => {
 
-    const {signup} = prop
-
     const methods = useForm()
     const {control, setError, handleSubmit} = methods
     const watchPassword = useWatch({control, name: ['password', 'password_confirm']})
+
+    const navigate = useNavigate()
+    const dispatch = useDispatch()
 
     useEffect(() => {
         if (signup) {
@@ -42,6 +48,8 @@ const Sign = ({signup}) => {
 
     const handleSubmitCustom = (data) => {
         console.log(data)
+        dispatch({type: 'authorized/signin'})
+        navigate('/dashboard')
     }
 
     return (<>
@@ -84,10 +92,13 @@ const Sign = ({signup}) => {
  */
 const Auth = () => {
     
-    const [show, setShow] = useState(true);
+    const authorized = useSelector(state => state.authorized.value)
 
-    const handleClose = () => setShow(false);
-    const handleShow = () => setShow(true);
+    const [show, setShow] = useState(!authorized)
+
+    useEffect(() => {
+        setShow(!authorized)
+    }, [authorized])
 
     return (<>
         <Modal show = {show} centered>
@@ -105,6 +116,7 @@ const Auth = () => {
                 </Tabs>
             </Modal.Body>
         </Modal>
+        <Outlet/>
     </>)
 }
 
