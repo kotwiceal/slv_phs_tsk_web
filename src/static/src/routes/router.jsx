@@ -1,5 +1,5 @@
 /**
- * @brief
+ * @brief The module provides application component routing
  */
 
 // import react-router-dom dependencies
@@ -9,6 +9,7 @@ import {createBrowserRouter} from 'react-router-dom'
 import {ErrorPage} from './errors'
 import {Dashboard} from '../dashboard/navigation'
 import {Auth} from '../authorization/auth'
+import {TaskBrowser, taskLoader, TaskInitialize} from '../manager/manager'
 
 const router = createBrowserRouter([
     {
@@ -18,7 +19,20 @@ const router = createBrowserRouter([
         children: [
             {
                 path: 'dashboard',
-                element: <Dashboard/>
+                element: <Dashboard/>,
+                children: [
+                    {
+                        path: 'tasks',
+                        element: <TaskBrowser/>,
+                        loader: taskLoader,
+                        children: [
+                            {
+                                path: 'initialize',
+                                element: <TaskInitialize/>
+                            }
+                        ]
+                    }
+                ]
             },
             {
                 path: 'auth',
