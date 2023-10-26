@@ -12,7 +12,7 @@ import Offcanvas from 'react-bootstrap/Offcanvas'
 // import react hooks
 import {useId} from 'react'
 // import react-router-dom dependencies
-import {useNavigate, Outlet, Link} from 'react-router-dom'
+import {useNavigate, Outlet} from 'react-router-dom'
 // import redux dependencies
 import {useDispatch} from 'react-redux'
 
@@ -35,7 +35,7 @@ const Dashboard = () => {
     <Navbar 
         key = {expand} 
         expand = {expand} 
-        className="bg-body-tertiary mb-3"
+        className = 'bg-body-tertiary mb-3'
     >
         <Container fluid>
             <Navbar.Brand>ODE Solver</Navbar.Brand>
@@ -58,7 +58,8 @@ const Dashboard = () => {
 
                 <Offcanvas.Body>
                     <Nav>
-                        <Link to = 'tasks'>Tasks</Link>
+                        <Button onClick = {() => {navigate('tasks')}}>Tasks</Button>
+                        <hr/>
                         <Button onClick = {signOut}>
                             Sign Out
                         </Button>
