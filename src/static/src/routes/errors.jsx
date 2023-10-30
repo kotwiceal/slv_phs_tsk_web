@@ -2,6 +2,9 @@
  * @brief The module provides error notification components
  */
 
+// import boostrap components
+import Alert from 'react-bootstrap/Alert'
+
 // import react-router-dom dependencies
 import {useRouteError} from 'react-router-dom'
 

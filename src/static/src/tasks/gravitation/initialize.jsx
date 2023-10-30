@@ -375,22 +375,16 @@ const AdvanceMenu = ({show, setShow}) => {
 
 /**
  * @brief Main inputs form.
+ * @param {object} problem
  * @returns custom react component
  */
-const InitializeTaskGravitation = () => {
+const InitializeTaskGravitation = ({problem}) => {
+
     const methods = useForm({
         mode: 'all',
-        defaultValues: {
-            dim: '2',
-            time: 100,
-            tn: 100,
-            g: 1,
-            rtol: 1e-6,
-            atol: 10,
-            scale_m: 30,
-            scale_dr: 1
-        }
+        defaultValues: problem
     })
+
     const {handleSubmit} = methods
 
     const handleSubmitCustom = (data) => {
