@@ -6,6 +6,7 @@
 import {createBrowserRouter} from 'react-router-dom'
 
 // import custom components
+import {Main} from '../main'
 import {ErrorPage} from './errors'
 import {Dashboard} from '../dashboard/navigation'
 import {Auth} from '../authorization/auth'
@@ -14,7 +15,7 @@ import {TaskBrowser, taskLoader, TaskInitialize} from '../manager/manager'
 const router = createBrowserRouter([
     {
         path: '/',
-        element: <Auth/>,
+        element: <Main/>,
         errorElement: <ErrorPage/>,
         children: [
             {

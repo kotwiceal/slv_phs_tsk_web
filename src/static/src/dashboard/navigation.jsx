@@ -27,7 +27,7 @@ const Dashboard = () => {
     const dispatch = useDispatch()
 
     const signOut = () => {
-        navigate('/')
+        navigate('/auth')
         dispatch({type: 'authorized/signout'})
     }
 

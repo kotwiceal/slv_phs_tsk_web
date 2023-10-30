@@ -25,7 +25,7 @@ import {DialogTaskCreate, DialogTakDelete, DialogTaskInitialize} from './dialogs
 import {ProgressBarPattern} from './tools'
 
 // import react-router-dom dependencies
-import {useLoaderData, useNavigate, Outlet} from "react-router-dom"
+import {useLoaderData, useNavigate, Outlet} from 'react-router-dom'
 
 /**
  * @brief Component to dispay task initiazliation form.
@@ -53,12 +53,13 @@ const TaskInitialize = () => {
  */
 const TaksGroup = ({taskList}) => {
 
+    const fielArrayName = 'tasks'
+
     const methods = useForm({
         defaultValues: {tasks: taskList}
     })
 
     const {control} = methods
-    const fielArrayName = 'tasks'
     const {fields, append, remove} = useFieldArray({
         control, name: fielArrayName
     })
@@ -176,7 +177,6 @@ const Task = ({index, handleDelete, fielArrayName}) => {
                 </Button>
             </ButtonGroup>
         </Stack>
-        <Outlet/>
     </ListGroup.Item>
     </>)
 }
@@ -195,6 +195,7 @@ const TaskBrowser = () => {
                 <TaksGroup taskList = {taskList}/>
             </Card.Body>
         </Card>
+        <Outlet/>
     </>)
 }
 
@@ -209,7 +210,22 @@ const taskLoader = () => {
     const tasks = [
         {
             name: 'test-1', type: 'grav', comment: '', date: '10/15/2023, 7:30:36 PM', 
-            id: '25c8a8028571f993bfa6cad65b78b'
+            id: '25c8a8028571f993bfa6cad65b78b',
+            problem: {
+                dim: '2',
+                time: 100,
+                tn: 100,
+                g: 1,
+                rtol: 1e-6,
+                atol: 10,
+                scale_m: 30,
+                scale_dr: 1,
+                bodies: [
+                    {r: [0, 1], dr: [0, 0], m: 1},
+                    {r: [1, 1], dr: [0, 0], m: 2},
+                    {r: [-1, -1], dr: [0, 0], m: 3}
+                ]
+            }
         },
         {
             name: 'test-2', type: 'grav', comment: '', date: '10/15/2023, 7:30:36 PM', 
